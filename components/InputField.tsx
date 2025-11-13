@@ -19,21 +19,32 @@ interface InputFieldProps {
 const formatPhoneNumber = (value: string): string => {
   if (!value) return value;
 
-  // Remove all non-digit characters and limit to 11 digits
-  const digitsOnly = value.replace(/\D/g, '').slice(0, 11);
-  const len = digitsOnly.length;
+  // 1. Remove todos os caracteres não numéricos para obter uma string limpa de dígitos.
+  const digitsOnly = value.replace(/\D/g, '');
+  
+  // 2. Limita a 11 dígitos, o máximo para um número de telefone brasileiro (DDD + 9 dígitos).
+  const phoneNumber = digitsOnly.slice(0, 11);
+  const numberLength = phoneNumber.length;
 
-  if (len <= 2) {
-    return `(${digitsOnly}`;
+  // 3. Formata o número passo a passo, conforme o usuário digita.
+
+  // Adiciona parêntese de abertura para o DDD
+  if (numberLength <= 2) {
+    return `(${phoneNumber}`;
   }
-  if (len <= 6) {
-    return `(${digitsOnly.slice(0, 2)}) ${digitsOnly.slice(2)}`;
+
+  // Adiciona parêntese de fechamento e espaço após o DDD
+  if (numberLength <= 6) {
+    return `(${phoneNumber.slice(0, 2)}) ${phoneNumber.slice(2)}`;
   }
-  if (len <= 10) { // For 7 to 10 digits (landline)
-    return `(${digitsOnly.slice(0, 2)}) ${digitsOnly.slice(2, 6)}-${digitsOnly.slice(6)}`;
+
+  // Formata como telefone fixo (até 10 dígitos no total)
+  if (numberLength <= 10) {
+    return `(${phoneNumber.slice(0, 2)}) ${phoneNumber.slice(2, 6)}-${phoneNumber.slice(6)}`;
   }
-  // For 11 digits (mobile)
-  return `(${digitsOnly.slice(0, 2)}) ${digitsOnly.slice(2, 7)}-${digitsOnly.slice(7)}`;
+
+  // Formata como celular (11 dígitos)
+  return `(${phoneNumber.slice(0, 2)}) ${phoneNumber.slice(2, 7)}-${phoneNumber.slice(7)}`;
 };
 
 

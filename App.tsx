@@ -179,6 +179,7 @@ function App() {
   const [toast, setToast] = useState<{ message: string; type: 'success' } | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [reportToDelete, setReportToDelete] = useState<SavedReport | null>(null);
+  const [autoSaveMessage, setAutoSaveMessage] = useState('');
 
   // Gemini AI State
   const [isGeminiModalOpen, setIsGeminiModalOpen] = useState(false);
@@ -187,11 +188,51 @@ function App() {
   const [geminiError, setGeminiError] = useState<string | null>(null);
 
 
+  // Auto-save draft every 60 seconds
   useEffect(() => {
-    if (!isSubmitted) {
-      localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(formData));
-    }
+    const intervalId = setInterval(() => {
+      // Don't save if the form was just submitted or is in a pristine default state
+      const isPristine = JSON.stringify(formData) === JSON.stringify(getDefaultFormData());
+      if (!isSubmitted && !isPristine) {
+        localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(formData));
+        const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        setAutoSaveMessage(`Rascunho salvo automaticamente às ${time}`);
+        // Message fades out after 5 seconds
+        setTimeout(() => setAutoSaveMessage(''), 5000);
+      }
+    }, 60000); // 60 seconds
+
+    return () => {
+      clearInterval(intervalId);
+    };
   }, [formData, isSubmitted]);
+
+
+  // Warn user before leaving if there are unsaved changes
+  useEffect(() => {
+    const hasUnsavedChanges = () => {
+      // Check if there's a draft in local storage that isn't the default empty form
+      const draft = localStorage.getItem(DRAFT_STORAGE_KEY);
+      // We only want to trigger the warning if there's a meaningful draft saved
+      return !!draft && draft !== JSON.stringify(getDefaultFormData());
+    };
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges()) {
+        event.preventDefault();
+        // Standard for most browsers
+        event.returnValue = '';
+        return ''; // Required for some older browsers
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []); // Run only once on component mount
+
 
   useEffect(() => {
     localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history));
@@ -244,14 +285,25 @@ function App() {
 
   const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
+    
     if (name === 'guardianEmail') {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (value && !emailRegex.test(value)) {
         setErrors(prev => ({ ...prev, guardianEmail: 'Por favor, insira um endereço de e-mail válido.' }));
       } else {
-        // Limpa o erro se o campo for válido ou estiver vazio
+        // Clear error if the field is valid or empty
         setErrors(prev => ({ ...prev, guardianEmail: undefined }));
       }
+    }
+    
+    if (name === 'guardianPhone') {
+        const phoneDigits = value.replace(/\D/g, '');
+        if (phoneDigits.length > 0 && ![10, 11].includes(phoneDigits.length)) {
+            setErrors(prev => ({ ...prev, guardianPhone: 'Número de telefone inválido. Deve conter 10 ou 11 dígitos, incluindo o DDD.' }));
+        } else {
+            // Clear error if the field is valid or empty
+            setErrors(prev => ({ ...prev, guardianPhone: undefined }));
+        }
     }
   };
 
@@ -369,7 +421,9 @@ function App() {
   };
 
   const handleLoadReport = (id: string) => {
-    const isDraftDirty = localStorage.getItem(DRAFT_STORAGE_KEY) && localStorage.getItem(DRAFT_STORAGE_KEY) !== JSON.stringify(getDefaultFormData());
+    const draftData = localStorage.getItem(DRAFT_STORAGE_KEY);
+    const isDraftDirty = draftData && draftData !== JSON.stringify(getDefaultFormData());
+
     if (isDraftDirty && formData.id !== id) {
        const isConfirmed = window.confirm("Você tem certeza que deseja carregar este relatório? As alterações não salvas no formulário atual serão perdidas.");
        if (!isConfirmed) return;
@@ -378,7 +432,7 @@ function App() {
     const reportToLoad = history.find(report => report.id === id);
     if (reportToLoad) {
         const currentDate = new Date().toISOString().split('T')[0];
-        setFormData({
+        const loadedData = {
           ...reportToLoad,
           images: reportToLoad.images || [],
           studentPhoto: reportToLoad.studentPhoto || null,
@@ -386,7 +440,11 @@ function App() {
           guardianEmail: reportToLoad.guardianEmail || '',
           fillDate: currentDate,
           reporterDate: currentDate,
-        });
+        };
+        setFormData(loadedData);
+        // Save the loaded data as the current draft
+        localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(loadedData));
+
         setIsSubmitted(false);
         setSuccessMessage('');
         setErrors({});
@@ -411,6 +469,16 @@ function App() {
     }
     setIsDeleteModalOpen(false);
     setReportToDelete(null);
+  };
+  
+  const handleImportReports = (importedReports: SavedReport[]) => {
+    const isConfirmed = window.confirm(
+      "Você tem certeza que deseja importar este backup? Todos os relatórios existentes no navegador serão substituídos. Esta ação não pode ser desfeita."
+    );
+    if (isConfirmed) {
+      setHistory(importedReports);
+      setToast({ message: 'Backup importado com sucesso!', type: 'success' });
+    }
   };
 
   const handlePrint = () => {
@@ -587,7 +655,7 @@ function App() {
                   <div className="bg-white p-4 rounded-b-md border border-t-0 border-gray-200 grid grid-cols-1 md:grid-cols-2 gap-4">
                     <InputField id="guardianName" name="guardianName" label="Nome completo" type="text" value={formData.guardianName} onChange={handleChange} />
                     <InputField id="guardianRelationship" name="guardianRelationship" label="Parentesco" type="text" value={formData.guardianRelationship} onChange={handleChange} />
-                    <InputField id="guardianPhone" name="guardianPhone" label="Contato telefônico" type="tel" value={formData.guardianPhone} onChange={handleChange} placeholder="(00) 00000-0000" error={errors.guardianPhone} />
+                    <InputField id="guardianPhone" name="guardianPhone" label="Contato telefônico" type="tel" value={formData.guardianPhone} onChange={handleChange} onBlur={handleBlur} placeholder="(00) 00000-0000" error={errors.guardianPhone} description="Deve conter DDD + 8 ou 9 dígitos." />
                     <InputField id="guardianEmail" name="guardianEmail" label="E-mail de contato" type="email" value={formData.guardianEmail} onChange={handleChange} onBlur={handleBlur} placeholder="exemplo@email.com" error={errors.guardianEmail} />
                     <InputField id="guardianAddress" name="guardianAddress" label="Endereço completo" type="text" value={formData.guardianAddress} onChange={handleChange} className="md:col-span-2" />
                   </div>
@@ -699,7 +767,14 @@ function App() {
                     <InputField id="socialWorkerSignatureDate" name="socialWorkerSignatureDate" label="Data" type="date" value={formData.socialWorkerSignatureDate} onChange={handleChange} description="Selecione ou digite a data." ariaLabel="Data da assinatura do assistente social" />
                   </div>
 
-                  <div className="mt-8 flex flex-col sm:flex-row justify-end gap-4">
+                  <div className="mt-8 flex flex-col sm:flex-row justify-end items-center gap-4">
+                    <div className="mr-auto">
+                        {autoSaveMessage && (
+                            <p className="text-sm text-gray-500 transition-opacity duration-500 animate-fade-in" role="status">
+                                {autoSaveMessage}
+                            </p>
+                        )}
+                    </div>
                     <button
                       type="button"
                       onClick={handleClear}
@@ -755,7 +830,13 @@ function App() {
           </main>
           
           <aside className="w-full lg:w-80 xl:w-96 flex-shrink-0 lg:order-2">
-             <HistoryPanel reports={history} onLoadReport={handleLoadReport} onDeleteReport={handleDeleteReport} currentReportId={formData.id} />
+             <HistoryPanel 
+                reports={history} 
+                onLoadReport={handleLoadReport} 
+                onDeleteReport={handleDeleteReport}
+                onImportReports={handleImportReports}
+                currentReportId={formData.id} 
+              />
           </aside>
 
         </div>
@@ -786,6 +867,15 @@ function App() {
         isLoading={isAnalyzing}
         error={geminiError}
       />
+      <style>{`
+        @keyframes fade-in {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        .animate-fade-in {
+          animation: fade-in 0.5s ease-out forwards;
+        }
+      `}</style>
     </>
   );
 }
