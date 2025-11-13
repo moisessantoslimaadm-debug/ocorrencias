@@ -4,6 +4,13 @@ export interface ReportImage {
   dataUrl: string;
 }
 
+export interface Modification {
+  date: string;
+  // In a full application with user authentication, you would also store user info:
+  // userId: string;
+  // userName: string;
+}
+
 export interface OccurrenceReport {
   schoolUnit: string;
   municipality: string;
@@ -52,6 +59,8 @@ export interface OccurrenceReport {
   guardianSignatureDate: string;
   socialWorkerSignatureName: string;
   socialWorkerSignatureDate: string;
+  
+  modificationHistory: Modification[];
 }
 
 export interface SavedReport extends OccurrenceReport {

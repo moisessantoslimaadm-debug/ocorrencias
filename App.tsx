@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { GoogleGenAI } from "@google/genai";
-import type { OccurrenceReport, SavedReport, ReportImage, GeminiAnalysisResult } from './types';
+import type { OccurrenceReport, SavedReport, ReportImage, GeminiAnalysisResult, Modification } from './types';
 import SectionHeader from './components/SectionHeader';
 import InputField from './components/InputField';
 import TextAreaField from './components/TextAreaField';
@@ -37,18 +37,6 @@ const calculateAge = (dob: string): string => {
   }
 
   return age >= 0 ? age.toString() : '';
-};
-
-const formatPhoneNumber = (value: string): string => {
-  if (!value) return value;
-  const phoneNumber = value.replace(/[^\d]/g, '');
-  const phoneNumberLength = phoneNumber.length;
-
-  if (phoneNumberLength < 3) return `(${phoneNumber}`;
-  if (phoneNumberLength < 8) {
-    return `(${phoneNumber.slice(0, 2)}) ${phoneNumber.slice(2)}`;
-  }
-  return `(${phoneNumber.slice(0, 2)}) ${phoneNumber.slice(2, 7)}-${phoneNumber.slice(7, 11)}`;
 };
 
 const getDefaultFormData = (): OccurrenceReport & { id?: string } => {
@@ -99,6 +87,7 @@ const getDefaultFormData = (): OccurrenceReport & { id?: string } => {
       guardianSignatureDate: '',
       socialWorkerSignatureName: '',
       socialWorkerSignatureDate: '',
+      modificationHistory: [],
     };
 };
 
@@ -113,6 +102,9 @@ const getInitialDraftData = (): OccurrenceReport & { id?: string } => {
                  }
                  if (!('studentPhoto' in parsedData)) {
                     parsedData.studentPhoto = null;
+                 }
+                 if (!('modificationHistory' in parsedData)) {
+                    parsedData.modificationHistory = [];
                  }
                  return parsedData as OccurrenceReport & { id?: string };
             }
@@ -134,6 +126,7 @@ const getInitialHistory = (): SavedReport[] => {
                     ...report,
                     images: report.images || [],
                     studentPhoto: report.studentPhoto || null,
+                    modificationHistory: report.modificationHistory || [],
                 })) as SavedReport[];
             }
         } catch (error) {
@@ -168,7 +161,7 @@ const validateStudentRegistration = (value: string): string => {
   return '';
 };
 
-type FormErrors = Partial<Record<keyof OccurrenceReport | 'occurrenceTypes', string>>;
+type FormErrors = Partial<Record<keyof OccurrenceReport | 'occurrenceTypes' | 'guardianPhone', string>>;
 
 
 function App() {
@@ -213,6 +206,15 @@ function App() {
       }
     });
 
+    if (formData.guardianPhone) {
+        const phoneDigits = formData.guardianPhone.replace(/\D/g, '');
+        // A valid number must have 10 (DDD + 8 digits) or 11 digits (DDD + 9 digits).
+        // The field is optional, so we only validate if it's not empty.
+        if (phoneDigits.length > 0 && ![10, 11].includes(phoneDigits.length)) {
+            newErrors.guardianPhone = 'Número de telefone inválido. Deve conter 10 ou 11 dígitos, incluindo o DDD.';
+        }
+    }
+
     const isAnyOccurrenceTypeChecked = Object.values(formData.occurrenceTypes).some(value => value);
     if (!isAnyOccurrenceTypeChecked) {
         newErrors.occurrenceTypes = 'Selecione ao menos um tipo de ocorrência.';
@@ -233,20 +235,17 @@ function App() {
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target as { name: keyof OccurrenceReport, value: string };
     
-    if (errors[name]) {
+    if (errors[name as keyof FormErrors]) {
       setErrors(prev => ({ ...prev, [name]: undefined }));
     }
 
-    let processedValue = value;
-    if (name === 'guardianPhone') {
-        processedValue = formatPhoneNumber(value);
-    } else if (name === 'studentRegistration') {
+    if (name === 'studentRegistration') {
         const errorMessage = validateStudentRegistration(value);
         setErrors(prev => ({ ...prev, studentRegistration: errorMessage }));
     }
 
     setFormData(prev => {
-        const newState = { ...prev, [name]: processedValue };
+        const newState = { ...prev, [name]: value };
         if (name === 'studentDob') {
             newState.studentAge = calculateAge(value);
         }
@@ -314,8 +313,17 @@ function App() {
         if (id) {
             setSuccessMessage('Relatório atualizado com sucesso!');
             setToast({ message: 'Relatório atualizado com sucesso!', type: 'success' });
+
+            const newModification: Modification = { date: new Date().toISOString() };
+            const updatedModificationHistory = [...(reportData.modificationHistory || []), newModification];
+
             return prevHistory.map(report => 
-                report.id === id ? { ...report, ...reportData, savedAt: new Date().toISOString() } : report
+                report.id === id ? { 
+                    ...report, 
+                    ...reportData, 
+                    modificationHistory: updatedModificationHistory,
+                    savedAt: new Date().toISOString() 
+                } : report
             );
         } else {
             setSuccessMessage('Ocorrência registrada com sucesso!');
@@ -323,7 +331,8 @@ function App() {
             const newReport: SavedReport = {
                 ...reportData,
                 id: Date.now().toString(),
-                savedAt: new Date().toISOString()
+                savedAt: new Date().toISOString(),
+                modificationHistory: [],
             };
             return [newReport, ...prevHistory];
         }
@@ -350,6 +359,7 @@ function App() {
           ...reportToLoad,
           images: reportToLoad.images || [],
           studentPhoto: reportToLoad.studentPhoto || null,
+          modificationHistory: reportToLoad.modificationHistory || [],
           fillDate: currentDate,
           reporterDate: currentDate,
         });
@@ -553,7 +563,7 @@ function App() {
                   <div className="bg-white p-4 rounded-b-md border border-t-0 border-gray-200 grid grid-cols-1 md:grid-cols-2 gap-4">
                     <InputField id="guardianName" name="guardianName" label="Nome completo" type="text" value={formData.guardianName} onChange={handleChange} />
                     <InputField id="guardianRelationship" name="guardianRelationship" label="Parentesco" type="text" value={formData.guardianRelationship} onChange={handleChange} />
-                    <InputField id="guardianPhone" name="guardianPhone" label="Contato telefônico" type="tel" value={formData.guardianPhone} onChange={handleChange} placeholder="(00) 00000-0000" />
+                    <InputField id="guardianPhone" name="guardianPhone" label="Contato telefônico" type="tel" value={formData.guardianPhone} onChange={handleChange} placeholder="(00) 00000-0000" error={errors.guardianPhone} />
                     <InputField id="guardianAddress" name="guardianAddress" label="Endereço completo" type="text" value={formData.guardianAddress} onChange={handleChange} className="md:col-span-2" />
                   </div>
                   
@@ -638,7 +648,23 @@ function App() {
                     <TextAreaField id="socialServiceObservation" name="socialServiceObservation" label="" subtitle="(se houver)" value={formData.socialServiceObservation} onChange={handleChange} />
                   </div>
 
-                  <SectionHeader title="10. ASSINATURA" />
+                  {formData.id && formData.modificationHistory && formData.modificationHistory.length > 0 && (
+                    <>
+                      <SectionHeader title="10. HISTÓRICO DE MODIFICAÇÕES" />
+                      <div className="bg-white p-4 rounded-b-md border border-t-0 border-gray-200">
+                        <ul className="space-y-2 text-sm text-gray-600">
+                          {formData.modificationHistory.map((mod, index) => (
+                            <li key={index} className="pl-4 border-l-2 border-emerald-200">
+                              Relatório atualizado em: <span className="font-semibold">{new Date(mod.date).toLocaleString('pt-BR')}</span>.
+                            </li>
+                          ))}
+                        </ul>
+                        <p className="text-xs text-gray-500 mt-3 italic">Nota: A data de criação do relatório pode ser vista no painel de histórico lateral sob "Salvo em".</p>
+                      </div>
+                    </>
+                  )}
+
+                  <SectionHeader title="11. ASSINATURA" />
                   <div className="bg-white p-4 rounded-b-md border border-t-0 border-gray-200 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
                     <InputField id="reporterName" name="reporterName" label="Responsável pelo registro" type="text" value={formData.reporterName} onChange={handleChange} error={errors.reporterName} />
                     <InputField id="reporterDate" name="reporterDate" label="Data" type="date" value={formData.reporterDate} onChange={handleChange} description="Selecione ou digite a data." ariaLabel="Data do registro" error={errors.reporterDate} readOnly />

@@ -45,7 +45,8 @@ const PrintableReport: React.FC<PrintableReportProps> = ({ reportData }) => {
     guardianName, guardianRelationship, guardianPhone, guardianAddress,
     occurrenceDate, occurrenceTime, occurrenceLocation, occurrenceTypes, occurrenceOtherDescription,
     detailedDescription, images, peopleInvolved, immediateActions, referralsMade, socialServiceObservation,
-    reporterName, reporterDate, guardianSignatureName, guardianSignatureDate, socialWorkerSignatureName, socialWorkerSignatureDate
+    reporterName, reporterDate, guardianSignatureName, guardianSignatureDate, socialWorkerSignatureName, socialWorkerSignatureDate,
+    modificationHistory
   } = reportData;
 
   const checkedOccurrenceTypes = Object.entries(occurrenceTypes)
@@ -151,8 +152,20 @@ const PrintableReport: React.FC<PrintableReportProps> = ({ reportData }) => {
         <Section title="9. AVALIAÇÃO E OBSERVAÇÕES DO SERVIÇO SOCIAL">
           <p className="text-sm p-2 border border-gray-400 min-h-[60px] whitespace-pre-wrap">{socialServiceObservation || 'Não preenchido.'}</p>
         </Section>
+
+        {modificationHistory && modificationHistory.length > 0 && (
+            <Section title="10. HISTÓRICO DE MODIFICAÇÕES">
+                <ul className="list-disc pl-5 space-y-1 text-sm">
+                    {modificationHistory.map((mod, index) => (
+                        <li key={index}>
+                            Relatório atualizado em: {new Date(mod.date).toLocaleString('pt-BR')}
+                        </li>
+                    ))}
+                </ul>
+            </Section>
+        )}
         
-        <Section title="10. ASSINATURAS">
+        <Section title="11. ASSINATURAS">
             <div className="grid grid-cols-2 gap-x-8 gap-y-12 mt-12 text-sm">
                 <div className="text-center">
                     <p className="border-t border-black pt-1">{reporterName || '\u00A0'}</p>
