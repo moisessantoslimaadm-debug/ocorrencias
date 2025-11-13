@@ -4,6 +4,7 @@ import type { OccurrenceReport, SavedReport, ReportImage, GeminiAnalysisResult, 
 import SectionHeader from './components/SectionHeader';
 import InputField from './components/InputField';
 import TextAreaField from './components/TextAreaField';
+import SelectField from './components/SelectField';
 import PrintableReport from './components/PrintableReport';
 import HistoryPanel from './components/HistoryPanel';
 import ImageUpload from './components/ImageUpload';
@@ -62,9 +63,9 @@ const getDefaultFormData = (): OccurrenceReport & { id?: string } => {
       guardianPhone: '',
       guardianEmail: '',
       guardianAddress: '',
-      occurrenceDate: '',
-      occurrenceTime: '',
+      occurrenceDateTime: '',
       occurrenceLocation: '',
+      occurrenceSeverity: '',
       occurrenceTypes: {
         physicalAssault: false,
         verbalAssault: false,
@@ -110,6 +111,16 @@ const getInitialDraftData = (): OccurrenceReport & { id?: string } => {
                  if (!('guardianEmail' in parsedData)) {
                     parsedData.guardianEmail = '';
                  }
+                 // Migration for old drafts
+                 if (!('occurrenceDateTime' in parsedData) && parsedData.occurrenceDate && parsedData.occurrenceTime) {
+                    parsedData.occurrenceDateTime = `${parsedData.occurrenceDate}T${parsedData.occurrenceTime}`;
+                 }
+                 if (!('occurrenceSeverity' in parsedData)) {
+                    parsedData.occurrenceSeverity = '';
+                 }
+                 delete parsedData.occurrenceDate;
+                 delete parsedData.occurrenceTime;
+
                  return parsedData as OccurrenceReport & { id?: string };
             }
         } catch (error) {
@@ -126,13 +137,23 @@ const getInitialHistory = (): SavedReport[] => {
         try {
             const parsedHistory = JSON.parse(savedHistory);
             if (Array.isArray(parsedHistory)) {
-                return parsedHistory.map(report => ({
-                    ...report,
-                    images: report.images || [],
-                    studentPhoto: report.studentPhoto || null,
-                    modificationHistory: report.modificationHistory || [],
-                    guardianEmail: report.guardianEmail || '',
-                })) as SavedReport[];
+                return parsedHistory.map(report => {
+                    // Migration for old history records
+                    if (!('occurrenceDateTime' in report) && report.occurrenceDate && report.occurrenceTime) {
+                        report.occurrenceDateTime = `${report.occurrenceDate}T${report.occurrenceTime}`;
+                    }
+                    delete report.occurrenceDate;
+                    delete report.occurrenceTime;
+                    return {
+                        ...report,
+                        images: report.images || [],
+                        studentPhoto: report.studentPhoto || null,
+                        modificationHistory: report.modificationHistory || [],
+                        guardianEmail: report.guardianEmail || '',
+                        occurrenceDateTime: report.occurrenceDateTime || '',
+                        occurrenceSeverity: report.occurrenceSeverity || '',
+                    };
+                }) as SavedReport[];
             }
         } catch (error) {
             console.error("Failed to parse history data from localStorage", error);
@@ -154,6 +175,12 @@ const occurrenceTypeLabels: { key: keyof OccurrenceReport['occurrenceTypes']; la
     { key: 'other', label: 'Outros' },
 ];
 
+const severityOptions = [
+    { value: 'Leve', label: 'Leve' },
+    { value: 'Moderada', label: 'Moderada' },
+    { value: 'Grave', label: 'Grave' },
+];
+
 const validateStudentRegistration = (value: string): string => {
   const maxLength = 20;
   if (!value) return '';
@@ -165,6 +192,9 @@ const validateStudentRegistration = (value: string): string => {
   }
   return '';
 };
+
+// More robust email validation regex
+const EMAIL_REGEX = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
 
 type FormErrors = Partial<Record<keyof OccurrenceReport | 'occurrenceTypes' | 'guardianPhone', string>>;
 
@@ -242,8 +272,8 @@ function App() {
     const newErrors: FormErrors = {};
     const requiredFields: (keyof OccurrenceReport)[] = [
       'schoolUnit', 'municipality', 'uf', 'studentName', 'studentDob',
-      'occurrenceDate', 'occurrenceTime', 'occurrenceLocation', 'detailedDescription',
-      'reporterName', 'reporterDate'
+      'occurrenceDateTime', 'occurrenceLocation', 'occurrenceSeverity',
+      'detailedDescription', 'reporterName', 'reporterDate'
     ];
 
     requiredFields.forEach(field => {
@@ -270,8 +300,7 @@ function App() {
         newErrors.occurrenceOtherDescription = "Especifique o tipo de ocorrência 'Outros'.";
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (formData.guardianEmail && !emailRegex.test(formData.guardianEmail)) {
+    if (formData.guardianEmail && !EMAIL_REGEX.test(formData.guardianEmail)) {
         newErrors.guardianEmail = 'Por favor, insira um endereço de e-mail válido.';
     }
 
@@ -287,8 +316,7 @@ function App() {
     const { name, value } = e.target;
     
     if (name === 'guardianEmail') {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (value && !emailRegex.test(value)) {
+      if (value && !EMAIL_REGEX.test(value)) {
         setErrors(prev => ({ ...prev, guardianEmail: 'Por favor, insira um endereço de e-mail válido.' }));
       } else {
         // Clear error if the field is valid or empty
@@ -307,7 +335,7 @@ function App() {
     }
   };
 
-  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target as { name: keyof OccurrenceReport, value: string };
     
     if (errors[name as keyof FormErrors]) {
@@ -438,6 +466,8 @@ function App() {
           studentPhoto: reportToLoad.studentPhoto || null,
           modificationHistory: reportToLoad.modificationHistory || [],
           guardianEmail: reportToLoad.guardianEmail || '',
+          occurrenceDateTime: reportToLoad.occurrenceDateTime || '',
+          occurrenceSeverity: reportToLoad.occurrenceSeverity || '',
           fillDate: currentDate,
           reporterDate: currentDate,
         };
@@ -663,9 +693,17 @@ function App() {
                   <SectionHeader title="3. CARACTERIZAÇÃO DA OCORRÊNCIA" />
                   <div className="bg-white p-4 rounded-b-md border border-t-0 border-gray-200 space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <InputField id="occurrenceDate" name="occurrenceDate" label="Data da ocorrência" type="date" value={formData.occurrenceDate} onChange={handleChange} description="Selecione ou digite a data." error={errors.occurrenceDate} />
-                      <InputField id="occurrenceTime" name="occurrenceTime" label="Horário aproximado" type="time" value={formData.occurrenceTime} onChange={handleChange} error={errors.occurrenceTime} />
+                      <InputField id="occurrenceDateTime" name="occurrenceDateTime" label="Data e hora da ocorrência" type="datetime-local" value={formData.occurrenceDateTime} onChange={handleChange} description="Selecione ou digite a data e hora." error={errors.occurrenceDateTime} />
                       <InputField id="occurrenceLocation" name="occurrenceLocation" label="Local onde ocorreu" type="text" value={formData.occurrenceLocation} onChange={handleChange} error={errors.occurrenceLocation} />
+                      <SelectField 
+                        id="occurrenceSeverity" 
+                        name="occurrenceSeverity" 
+                        label="Gravidade da ocorrência" 
+                        value={formData.occurrenceSeverity} 
+                        onChange={handleChange} 
+                        options={severityOptions} 
+                        error={errors.occurrenceSeverity}
+                      />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de ocorrência:</label>

@@ -43,11 +43,32 @@ const PrintableReport: React.FC<PrintableReportProps> = ({ reportData }) => {
     schoolUnit, municipality, uf, fillDate, fillTime,
     studentName, studentPhoto, studentDob, studentAge, studentGrade, studentShift, studentRegistration,
     guardianName, guardianRelationship, guardianPhone, guardianEmail, guardianAddress,
-    occurrenceDate, occurrenceTime, occurrenceLocation, occurrenceTypes, occurrenceOtherDescription,
+    occurrenceDateTime, occurrenceLocation, occurrenceSeverity, occurrenceTypes, occurrenceOtherDescription,
     detailedDescription, images, peopleInvolved, immediateActions, referralsMade, socialServiceObservation,
     reporterName, reporterDate, guardianSignatureName, guardianSignatureDate, socialWorkerSignatureName, socialWorkerSignatureDate,
     modificationHistory
   } = reportData;
+
+  const formatDateTimeLocal = (isoString: string | undefined | null) => {
+    if (!isoString) return '';
+    try {
+      const date = new Date(isoString);
+      if (isNaN(date.getTime())) return '';
+      // Format to DD/MM/YYYY, HH:mm
+      return new Intl.DateTimeFormat('pt-BR', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      }).format(date);
+    } catch (e) {
+      return '';
+    }
+  };
+
+  const formattedOccurrenceDateTime = formatDateTimeLocal(occurrenceDateTime);
 
   const checkedOccurrenceTypes = Object.entries(occurrenceTypes)
     .filter(([, isChecked]) => isChecked)
@@ -104,10 +125,10 @@ const PrintableReport: React.FC<PrintableReportProps> = ({ reportData }) => {
         </Section>
 
         <Section title="3. CARACTERIZAÇÃO DA OCORRÊNCIA">
-            <div className="grid grid-cols-3 gap-x-4 mb-2">
-                <DataField label="Data da ocorrência" value={occurrenceDate} />
-                <DataField label="Horário aproximado" value={occurrenceTime} />
+            <div className="grid grid-cols-4 gap-x-4 mb-2">
+                <DataField label="Data e Hora da Ocorrência" value={formattedOccurrenceDateTime} className="col-span-2" />
                 <DataField label="Local onde ocorreu" value={occurrenceLocation} />
+                <DataField label="Gravidade da Ocorrência" value={occurrenceSeverity} />
             </div>
              <DataField label="Tipo(s) de ocorrência" value={checkedOccurrenceTypes} />
              {occurrenceTypes.other && <DataField label="Especifique 'Outros'" value={occurrenceOtherDescription} />}

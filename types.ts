@@ -32,9 +32,9 @@ export interface OccurrenceReport {
   guardianEmail: string;
   guardianAddress: string;
 
-  occurrenceDate: string;
-  occurrenceTime: string;
+  occurrenceDateTime: string;
   occurrenceLocation: string;
+  occurrenceSeverity: string;
   occurrenceTypes: {
     physicalAssault: boolean;
     verbalAssault: boolean;

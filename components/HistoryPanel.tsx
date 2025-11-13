@@ -9,11 +9,40 @@ interface HistoryPanelProps {
   currentReportId?: string;
 }
 
+// Helper map for occurrence types
+const occurrenceTypeLabelsMap: Record<string, string> = {
+    physicalAssault: 'Agressão física',
+    verbalAssault: 'Agressão verbal',
+    bullying: 'Bullying',
+    propertyDamage: 'Dano ao patrimônio',
+    truancy: 'Fuga/abandono',
+    socialRisk: 'Risco social',
+    prohibitedSubstances: 'Substâncias proibidas',
+    other: 'Outros',
+};
+
+const getOccurrenceSummary = (types: SavedReport['occurrenceTypes']) => {
+    if (!types) return 'Não especificado';
+    const checked = Object.entries(types)
+        .filter(([, isChecked]) => isChecked)
+        .map(([key]) => occurrenceTypeLabelsMap[key] || key);
+    
+    if (checked.length === 0) return 'Não especificado';
+    const summary = checked.slice(0, 2).join(', ');
+    return checked.length > 2 ? `${summary}...` : summary;
+};
+
+
 const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDeleteReport, onImportReports, currentReportId }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [expandedReportId, setExpandedReportId] = useState<string | null>(null);
+
+  const handleToggleExpand = (id: string) => {
+    setExpandedReportId(prevId => (prevId === id ? null : id));
+  };
 
   const handleClearFilters = () => {
     setSearchTerm('');
@@ -24,10 +53,11 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
   const filteredReports = useMemo(() => {
     return reports
       .filter(report => {
-        if (startDate && report.occurrenceDate && report.occurrenceDate < startDate) {
+        const occurrenceDatePart = report.occurrenceDateTime ? report.occurrenceDateTime.split('T')[0] : '';
+        if (startDate && occurrenceDatePart && occurrenceDatePart < startDate) {
           return false;
         }
-        if (endDate && report.occurrenceDate && report.occurrenceDate > endDate) {
+        if (endDate && occurrenceDatePart && occurrenceDatePart > endDate) {
           return false;
         }
         if (searchTerm) {
@@ -45,7 +75,7 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
     const headers = [
       "ID", "Data Salvo", "Unidade Escolar", "Município", "UF",
       "Nome Aluno", "Data Nasc. Aluno", "Matrícula Aluno",
-      "E-mail Responsável", "Data Ocorrência", "Hora Ocorrência", "Local Ocorrência",
+      "E-mail Responsável", "Data e Hora Ocorrência", "Local Ocorrência", "Gravidade",
       "Descrição Detalhada"
     ];
 
@@ -59,9 +89,9 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
       r.studentDob,
       r.studentRegistration,
       r.guardianEmail,
-      r.occurrenceDate,
-      r.occurrenceTime,
+      r.occurrenceDateTime,
       r.occurrenceLocation,
+      r.occurrenceSeverity,
       `"${r.detailedDescription.replace(/"/g, '""')}"` // Escape double quotes
     ].join(','));
 
@@ -239,52 +269,79 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
             <p className="mt-1 text-sm text-gray-500">Tente ajustar ou limpar os filtros.</p>
             </div>
         ) : (
-            <ul className="space-y-3">
-            {filteredReports.map((report) => (
-                <li
-                    key={report.id}
-                    className={`p-3 rounded-md transition-all duration-200 group ${
-                    report.id === currentReportId ? 'bg-emerald-100 border-emerald-400 border-l-4' : 'bg-white border border-gray-200 hover:shadow-md hover:border-emerald-300'
-                    }`}
-                >
-                    <div className="flex items-start gap-3">
-                    <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 flex-shrink-0 flex items-center justify-center border-2 border-gray-300">
-                        {report.studentPhoto ? (
-                        <img src={report.studentPhoto.dataUrl} alt={report.studentName || 'Foto do Aluno'} className="w-full h-full object-cover" />
-                        ) : (
-                        <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
-                        )}
-                    </div>
-                    <div className="flex-grow min-w-0">
-                        <p className="font-semibold text-gray-900 truncate" title={report.studentName || 'Aluno não identificado'}>
-                        {report.studentName || 'Aluno não identificado'}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                        Ocorrência: {report.occurrenceDate ? new Date(report.occurrenceDate + 'T00:00:00').toLocaleDateString('pt-BR') : 'N/A'}
-                        </p>
-                        <p className="text-xs text-gray-400">
-                        Salvo em: {new Date(report.savedAt).toLocaleString('pt-BR')}
-                        </p>
-                    </div>
-                    </div>
-                    <div className="mt-3 flex items-center justify-end space-x-2">
-                    <button
-                        onClick={() => onDeleteReport(report.id)}
-                        className="px-3 py-1.5 text-xs font-medium text-red-700 bg-red-100 rounded-md hover:bg-red-200 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
-                        aria-label={`Excluir relatório de ${report.studentName}`}
+            <ul className="space-y-2">
+            {filteredReports.map((report) => {
+                const isExpanded = expandedReportId === report.id;
+                return (
+                    <li
+                        key={report.id}
+                        className={`rounded-md transition-all duration-200 ${
+                        report.id === currentReportId 
+                            ? 'bg-emerald-100 ring-2 ring-emerald-400' 
+                            : 'bg-white border border-gray-200 hover:shadow-md hover:border-emerald-300'
+                        }`}
                     >
-                        Excluir
-                    </button>
-                    <button
-                        onClick={() => onLoadReport(report.id)}
-                        className="px-3 py-1.5 text-xs font-medium text-white bg-emerald-600 rounded-md hover:bg-emerald-700 transition-colors"
-                        aria-label={`Carregar relatório de ${report.studentName}`}
-                    >
-                        {report.id === currentReportId ? 'Editando' : 'Carregar'}
-                    </button>
-                    </div>
-                </li>
-            ))}
+                        <div 
+                            className="p-3 flex items-start gap-3 cursor-pointer" 
+                            onClick={() => handleToggleExpand(report.id)}
+                            aria-expanded={isExpanded}
+                            aria-controls={`details-${report.id}`}
+                        >
+                            <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 flex-shrink-0 flex items-center justify-center border-2 border-gray-300">
+                                {report.studentPhoto ? (
+                                <img src={report.studentPhoto.dataUrl} alt={report.studentName || 'Foto do Aluno'} className="w-full h-full object-cover" />
+                                ) : (
+                                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                                )}
+                            </div>
+                            <div className="flex-grow min-w-0">
+                                <p className="font-semibold text-gray-900 truncate" title={report.studentName || 'Aluno não identificado'}>
+                                {report.studentName || 'Aluno não identificado'}
+                                </p>
+                                <div className="text-sm text-gray-600 mt-1 space-y-0.5">
+                                  <p className="truncate"><span className="font-medium text-gray-500">Tipo:</span> {getOccurrenceSummary(report.occurrenceTypes)}</p>
+                                  <p className="truncate"><span className="font-medium text-gray-500">Local:</span> {report.occurrenceLocation || 'Não informado'}</p>
+                                </div>
+                            </div>
+                            <div className="flex-shrink-0 ml-2">
+                                <svg className={`h-5 w-5 text-gray-400 transform transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                                </svg>
+                            </div>
+                        </div>
+                        <div 
+                            id={`details-${report.id}`}
+                            className={`transition-all duration-300 ease-in-out overflow-hidden ${isExpanded ? 'max-h-96' : 'max-h-0'}`}
+                        >
+                            <div className="px-3 pb-3 border-t border-gray-200">
+                                <div className="pt-3 text-sm text-gray-700 space-y-1">
+                                  <p><strong>Ocorrência:</strong> {report.occurrenceDateTime ? new Date(report.occurrenceDateTime).toLocaleString('pt-BR') : 'N/A'}</p>
+                                  <p><strong>Gravidade:</strong> <span className="font-semibold">{report.occurrenceSeverity || 'N/A'}</span></p>
+                                  <p><strong>Matrícula:</strong> {report.studentRegistration || 'N/A'}</p>
+                                  <p><strong>Responsável:</strong> {report.guardianName || 'N/A'}</p>
+                                  <p className="text-xs text-gray-500 pt-1">Salvo em: {new Date(report.savedAt).toLocaleString('pt-BR')}</p>
+                                </div>
+                                <div className="mt-3 flex items-center justify-end space-x-2">
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); onDeleteReport(report.id); }}
+                                        className="px-3 py-1.5 text-xs font-medium text-red-700 bg-red-100 rounded-md hover:bg-red-200 transition-colors"
+                                        aria-label={`Excluir relatório de ${report.studentName}`}
+                                    >
+                                        Excluir
+                                    </button>
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); onLoadReport(report.id); }}
+                                        className="px-3 py-1.5 text-xs font-medium text-white bg-emerald-600 rounded-md hover:bg-emerald-700 transition-colors"
+                                        aria-label={`Carregar relatório de ${report.studentName}`}
+                                    >
+                                        {report.id === currentReportId ? 'Editando' : 'Carregar'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </li>
+                )
+            })}
             </ul>
         )}
       </div>
