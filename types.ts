@@ -75,3 +75,5 @@ export interface GeminiAnalysisResult {
   referrals: string;
   severity: 'Leve' | 'Moderada' | 'Grave' | string;
 }
+
+export type FormErrors = Partial<Record<keyof OccurrenceReport | 'occurrenceTypes' | 'guardianPhone', string>>;

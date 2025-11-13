@@ -1,5 +1,8 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import type { SavedReport } from '../types';
+import OccurrenceChart from './OccurrenceChart';
+import SeverityDonutChart from './SeverityDonutChart';
+import Accordion from './Accordion';
 
 interface HistoryPanelProps {
   reports: SavedReport[];
@@ -9,7 +12,9 @@ interface HistoryPanelProps {
   currentReportId?: string;
 }
 
-// Helper map for occurrence types
+const RECENT_SEARCHES_KEY = 'pioe_recent_searches';
+const MAX_RECENT_SEARCHES = 5;
+
 const occurrenceTypeLabelsMap: Record<string, string> = {
     physicalAssault: 'Agressão física',
     verbalAssault: 'Agressão verbal',
@@ -32,16 +37,47 @@ const getOccurrenceSummary = (types: SavedReport['occurrenceTypes']) => {
     return checked.length > 2 ? `${summary}...` : summary;
 };
 
+const isReportIncomplete = (report: SavedReport): boolean => {
+    return !report.detailedDescription || !report.occurrenceLocation || !report.reporterName;
+};
 
 const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDeleteReport, onImportReports, currentReportId }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [expandedReportId, setExpandedReportId] = useState<string | null>(null);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [justLoadedReportId, setJustLoadedReportId] = useState<string | null>(null);
 
-  const handleToggleExpand = (id: string) => {
-    setExpandedReportId(prevId => (prevId === id ? null : id));
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    try {
+        const storedSearches = localStorage.getItem(RECENT_SEARCHES_KEY);
+        if (storedSearches) {
+            setRecentSearches(JSON.parse(storedSearches));
+        }
+    } catch (e) {
+        console.error("Failed to parse recent searches:", e);
+        localStorage.removeItem(RECENT_SEARCHES_KEY);
+    }
+  }, []);
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+  };
+  
+  const handleSearchSubmit = (term: string) => {
+    const trimmedTerm = term.trim();
+    if (!trimmedTerm) return;
+
+    const newSearches = [trimmedTerm, ...recentSearches.filter(s => s !== trimmedTerm)].slice(0, MAX_RECENT_SEARCHES);
+    setRecentSearches(newSearches);
+    localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(newSearches));
+  };
+  
+  const handleRecentSearchClick = (term: string) => {
+    setSearchTerm(term);
+    handleSearchSubmit(term);
   };
 
   const handleClearFilters = () => {
@@ -54,20 +90,21 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
     return reports
       .filter(report => {
         const occurrenceDatePart = report.occurrenceDateTime ? report.occurrenceDateTime.split('T')[0] : '';
-        if (startDate && occurrenceDatePart && occurrenceDatePart < startDate) {
-          return false;
-        }
-        if (endDate && occurrenceDatePart && occurrenceDatePart > endDate) {
-          return false;
-        }
+        if (startDate && occurrenceDatePart && occurrenceDatePart < startDate) return false;
+        if (endDate && occurrenceDatePart && occurrenceDatePart > endDate) return false;
         if (searchTerm) {
           const lowerCaseSearch = searchTerm.toLowerCase();
-          const studentNameMatch = report.studentName?.toLowerCase().includes(lowerCaseSearch);
-          if (!studentNameMatch) return false;
+          return report.studentName?.toLowerCase().includes(lowerCaseSearch);
         }
         return true;
       })
   }, [reports, startDate, endDate, searchTerm]);
+  
+  const handleLoadAndHighlight = (id: string) => {
+    onLoadReport(id);
+    setJustLoadedReportId(id);
+    setTimeout(() => setJustLoadedReportId(null), 1500); // Highlight for 1.5 seconds
+  };
 
   const handleExportCsv = () => {
     if (filteredReports.length === 0) return;
@@ -92,7 +129,7 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
       r.occurrenceDateTime,
       r.occurrenceLocation,
       r.occurrenceSeverity,
-      `"${r.detailedDescription.replace(/"/g, '""')}"` // Escape double quotes
+      `"${r.detailedDescription.replace(/"/g, '""')}"`
     ].join(','));
 
     const csvContent = "data:text/csv;charset=utf-8," 
@@ -128,6 +165,30 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
     fileInputRef.current?.click();
   };
 
+  const validateImportedData = (data: any[]): { isValid: boolean; error: string | null } => {
+    if (!Array.isArray(data)) {
+        return { isValid: false, error: "O arquivo não contém uma lista de relatórios." };
+    }
+    if (data.length === 0) {
+        return { isValid: true, error: null }; // Empty array is valid
+    }
+    const essentialKeys: (keyof SavedReport)[] = ['id', 'studentName', 'savedAt', 'detailedDescription'];
+    
+    for (let i = 0; i < data.length; i++) {
+        const report = data[i];
+        if (typeof report !== 'object' || report === null) {
+            return { isValid: false, error: `O item ${i+1} no backup não é um objeto válido.` };
+        }
+        for (const key of essentialKeys) {
+            if (!(key in report)) {
+                return { isValid: false, error: `Importação falhou: O relatório ${i+1} não contém o campo essencial '${key}'. Verifique o arquivo de backup.` };
+            }
+        }
+    }
+    return { isValid: true, error: null };
+};
+
+
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -136,130 +197,103 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
     reader.onload = (e) => {
       try {
         const result = e.target?.result;
-        if (typeof result !== 'string') {
-          throw new Error("Tipo de arquivo inválido.");
-        }
+        if (typeof result !== 'string') throw new Error("Tipo de arquivo inválido.");
+        
         const importedData = JSON.parse(result);
-        if (Array.isArray(importedData)) {
-            // Basic validation to check if it looks like report data
-            if (importedData.length === 0 || (importedData[0].id && importedData[0].studentName !== undefined)) {
-                 onImportReports(importedData as SavedReport[]);
-            } else {
-                 throw new Error("O arquivo não parece ser um backup válido.");
-            }
-        } else {
-            throw new Error("Formato de backup inválido. O arquivo deve conter um array de relatórios.");
-        }
+        const { isValid, error } = validateImportedData(importedData);
+        
+        if (!isValid) throw new Error(error || "Formato de backup inválido.");
+
+        onImportReports(importedData as SavedReport[]);
+
       } catch (error) {
         alert(`Erro ao importar o backup: ${error instanceof Error ? error.message : String(error)}`);
       }
     };
     reader.readAsText(file);
-    // Reset file input value to allow re-uploading the same file
     event.target.value = '';
   };
 
+  const getSeverityBadge = (severity: string) => {
+    switch (severity) {
+        case 'Grave': return 'bg-red-100 text-red-800';
+        case 'Moderada': return 'bg-yellow-100 text-yellow-800';
+        case 'Leve': return 'bg-green-100 text-green-800';
+        default: return 'bg-gray-100 text-gray-800';
+    }
+  }
 
   return (
-    <aside className="non-printable w-full bg-gray-50 p-4 rounded-lg shadow-inner self-start sticky top-8">
-      <input
-        type="file"
-        ref={fileInputRef}
-        onChange={handleFileSelect}
-        accept=".json"
-        className="hidden"
-        aria-hidden="true"
-      />
-      <div className="flex justify-between items-center mb-4 border-b pb-2">
-        <h2 className="text-xl font-bold text-gray-800">Histórico</h2>
-        <span className="text-sm font-medium bg-emerald-100 text-emerald-800 py-1 px-2.5 rounded-full">{filteredReports.length}</span>
-      </div>
-
-      <div className="mb-4 space-y-3">
-        <div>
-          <label htmlFor="search-report" className="text-sm font-medium text-gray-600 mb-1 block">Pesquisar por aluno:</label>
-          <input
-            type="text"
-            id="search-report"
-            placeholder="Nome do aluno..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full p-2 border border-gray-300 rounded-md shadow-sm text-sm focus:ring-emerald-500 focus:border-emerald-500"
-          />
-        </div>
-        <div>
-          <p className="text-sm font-medium text-gray-600 mb-1">Filtrar por data da ocorrência:</p>
-          <div className="flex items-center gap-2">
-            <div className="flex-1">
-              <label htmlFor="start-date" className="sr-only">De:</label>
-              <input
-                type="date"
-                id="start-date"
-                title="Data de início"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded-md shadow-sm text-sm focus:ring-emerald-500 focus:border-emerald-500"
-              />
-            </div>
-             <span className="text-gray-500">-</span>
-            <div className="flex-1">
-              <label htmlFor="end-date" className="sr-only">Até:</label>
-              <input
-                type="date"
-                id="end-date"
-                title="Data de fim"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-full p-2 border border-gray-300 rounded-md shadow-sm text-sm focus:ring-emerald-500 focus:border-emerald-500"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2">
-          {(startDate || endDate || searchTerm) && (
-              <button
-                  onClick={handleClearFilters}
-                  className="col-span-2 px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors"
-                >
-                Limpar Filtros
-              </button>
-          )}
-          <button
-              onClick={handleExportCsv}
-              disabled={filteredReports.length === 0}
-              className="flex items-center justify-center gap-2 px-3 py-1.5 text-sm font-medium text-emerald-700 bg-emerald-100 rounded-md hover:bg-emerald-200 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
-              title="Exportar visão atual para CSV"
-            >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>
-            Exportar CSV
-          </button>
-          <button
-              onClick={handleExportJson}
-              disabled={reports.length === 0}
-              className="flex items-center justify-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-100 rounded-md hover:bg-blue-200 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
-              title="Exportar todos os relatórios para um arquivo de backup"
-            >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z" /><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z" /></svg>
-            Backup (JSON)
-          </button>
-           <button
-              onClick={handleImportClick}
-              className="col-span-2 flex items-center justify-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-100 transition-colors"
-              title="Importar relatórios de um arquivo de backup. Isso substituirá os dados atuais."
-            >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M9.25 3.75a.75.75 0 00-1.5 0v8.614L4.795 9.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V3.75z" /><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z" /></svg>
-            Importar Backup (JSON)
-          </button>
-        </div>
-      </div>
+    <aside className="non-printable w-full bg-gray-50 p-4 rounded-lg shadow-inner self-start sticky top-8 space-y-4">
+      <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept=".json" className="hidden" aria-hidden="true" />
       
-      <div className="max-h-[calc(100vh-400px)] overflow-y-auto pr-2 -mr-2">
+      <div className="flex justify-between items-center border-b pb-2">
+        <h2 className="text-xl font-bold text-gray-800">Histórico</h2>
+        <span className="text-sm font-medium bg-emerald-100 text-emerald-800 py-1 px-2.5 rounded-full">{reports.length}</span>
+      </div>
+
+      <Accordion title="Dashboard" defaultOpen>
+        <div className="space-y-4">
+            <OccurrenceChart reports={reports} />
+            <SeverityDonutChart reports={reports} />
+        </div>
+      </Accordion>
+
+      <Accordion title="Filtrar Relatórios">
+          <div className="space-y-3">
+            <div>
+              <label htmlFor="search-report" className="text-sm font-medium text-gray-600 mb-1 block">Pesquisar por aluno:</label>
+              <form onSubmit={(e) => { e.preventDefault(); handleSearchSubmit(searchTerm); }}>
+                <input
+                    type="text"
+                    id="search-report"
+                    placeholder="Nome do aluno..."
+                    value={searchTerm}
+                    onChange={handleSearchChange}
+                    className="w-full p-2 border border-gray-300 rounded-md shadow-sm text-sm focus:ring-emerald-500 focus:border-emerald-500"
+                />
+              </form>
+              {recentSearches.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                    {recentSearches.map(term => (
+                        <button key={term} onClick={() => handleRecentSearchClick(term)} className="px-2 py-0.5 text-xs bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300">
+                            {term}
+                        </button>
+                    ))}
+                </div>
+              )}
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-600 mb-1">Filtrar por data da ocorrência:</p>
+              <div className="flex items-center gap-2">
+                <div className="flex-1"><input type="date" id="start-date" title="Data de início" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md shadow-sm text-sm focus:ring-emerald-500 focus:border-emerald-500" /></div>
+                <span className="text-gray-500">-</span>
+                <div className="flex-1"><input type="date" id="end-date" title="Data de fim" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md shadow-sm text-sm focus:ring-emerald-500 focus:border-emerald-500" /></div>
+              </div>
+            </div>
+             {(startDate || endDate || searchTerm) && (
+              <>
+                <p className="text-xs text-center text-gray-600 pt-1">
+                    Exibindo {filteredReports.length} de {reports.length} relatórios.
+                </p>
+                <button onClick={handleClearFilters} className="w-full px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors">Limpar Filtros</button>
+              </>
+            )}
+          </div>
+      </Accordion>
+      
+      <Accordion title="Gerenciamento de Dados">
+          <div className="grid grid-cols-2 gap-2">
+              <button onClick={handleExportCsv} disabled={filteredReports.length === 0} className="flex items-center justify-center gap-2 px-3 py-1.5 text-sm font-medium text-emerald-700 bg-emerald-100 rounded-md hover:bg-emerald-200 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors" title="Exportar visão atual para CSV"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>Exportar CSV</button>
+              <button onClick={handleExportJson} disabled={reports.length === 0} className="flex items-center justify-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-100 rounded-md hover:bg-blue-200 disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed transition-colors" title="Exportar todos os relatórios para um arquivo de backup"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z" /><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z" /></svg>Backup</button>
+              <button onClick={handleImportClick} className="col-span-2 flex items-center justify-center gap-2 px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-100 transition-colors" title="Importar relatórios. Isso substituirá os dados atuais."><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M9.25 3.75a.75.75 0 00-1.5 0v8.614L4.795 9.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V3.75z" /><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z" /></svg>Importar</button>
+            </div>
+      </Accordion>
+      
+      <div className="max-h-[calc(100vh-500px)] overflow-y-auto pr-2 -mr-2">
         {reports.length === 0 ? (
             <div className="text-center text-gray-500 mt-8 p-4 border-2 border-dashed rounded-lg">
-            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                <path vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-            </svg>
+            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 13h6m-3-3v6m-9 1V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" /></svg>
             <h3 className="mt-2 text-sm font-medium text-gray-900">Nenhum relatório salvo</h3>
             <p className="mt-1 text-sm text-gray-500">Comece a preencher o formulário para criar um novo registro.</p>
             </div>
@@ -270,81 +304,56 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
             </div>
         ) : (
             <ul className="space-y-2">
-            {filteredReports.map((report) => {
-                const isExpanded = expandedReportId === report.id;
-                return (
+            {filteredReports.map((report) => (
                     <li
                         key={report.id}
-                        className={`rounded-md transition-all duration-200 ${
-                        report.id === currentReportId 
-                            ? 'bg-emerald-100 ring-2 ring-emerald-400' 
-                            : 'bg-white border border-gray-200 hover:shadow-md hover:border-emerald-300'
-                        }`}
+                        className={`rounded-md transition-all duration-300 ${
+                        report.id === currentReportId ? 'bg-emerald-100 ring-2 ring-emerald-400' 
+                        : 'bg-white border border-gray-200 hover:shadow-md hover:border-emerald-300'}
+                        ${justLoadedReportId === report.id ? 'animate-pulse-bg' : ''}
+                        `}
                     >
-                        <div 
-                            className="p-3 flex items-start gap-3 cursor-pointer" 
-                            onClick={() => handleToggleExpand(report.id)}
-                            aria-expanded={isExpanded}
-                            aria-controls={`details-${report.id}`}
-                        >
-                            <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 flex-shrink-0 flex items-center justify-center border-2 border-gray-300">
-                                {report.studentPhoto ? (
-                                <img src={report.studentPhoto.dataUrl} alt={report.studentName || 'Foto do Aluno'} className="w-full h-full object-cover" />
-                                ) : (
-                                <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                        <div className="p-3">
+                            <div className="flex items-start gap-3">
+                                <div className="w-12 h-12 rounded-full overflow-hidden bg-gray-200 flex-shrink-0 flex items-center justify-center border-2 border-gray-300">
+                                    {report.studentPhoto ? (
+                                    <img src={report.studentPhoto.dataUrl} alt={report.studentName || 'Foto do Aluno'} className="w-full h-full object-cover" />
+                                    ) : (
+                                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                                    )}
+                                </div>
+                                <div className="flex-grow min-w-0">
+                                    <p className="font-semibold text-gray-900 truncate" title={report.studentName || 'Aluno não identificado'}>{report.studentName || 'Aluno não identificado'}</p>
+                                    <div className="text-sm text-gray-500 mt-1">
+                                        <p className="truncate" title={`${getOccurrenceSummary(report.occurrenceTypes)} em ${report.occurrenceLocation}`}>{new Date(report.occurrenceDateTime).toLocaleDateString('pt-BR', {day: '2-digit', month: 'short'})} &middot; {report.occurrenceLocation || 'Local n/d'}</p>
+                                    </div>
+                                </div>
+                                {isReportIncomplete(report) && (
+                                     <div className="flex-shrink-0" title="Relatório com campos importantes em branco"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-yellow-500" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M8.257 3.099c.636-1.21 2.852-1.21 3.488 0l6.096 11.623c.664 1.269-.263 2.778-1.744 2.778H3.905c-1.48 0-2.408-1.509-1.744-2.778L8.257 3.099zM9 13a1 1 0 112 0 1 1 0 01-2 0zm1-5a1 1 0 00-1 1v2a1 1 0 102 0V9a1 1 0 00-1-1z" clipRule="evenodd" /></svg></div>
                                 )}
                             </div>
-                            <div className="flex-grow min-w-0">
-                                <p className="font-semibold text-gray-900 truncate" title={report.studentName || 'Aluno não identificado'}>
-                                {report.studentName || 'Aluno não identificado'}
-                                </p>
-                                <div className="text-sm text-gray-600 mt-1 space-y-0.5">
-                                  <p className="truncate"><span className="font-medium text-gray-500">Tipo:</span> {getOccurrenceSummary(report.occurrenceTypes)}</p>
-                                  <p className="truncate"><span className="font-medium text-gray-500">Local:</span> {report.occurrenceLocation || 'Não informado'}</p>
-                                </div>
-                            </div>
-                            <div className="flex-shrink-0 ml-2">
-                                <svg className={`h-5 w-5 text-gray-400 transform transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                                </svg>
-                            </div>
-                        </div>
-                        <div 
-                            id={`details-${report.id}`}
-                            className={`transition-all duration-300 ease-in-out overflow-hidden ${isExpanded ? 'max-h-96' : 'max-h-0'}`}
-                        >
-                            <div className="px-3 pb-3 border-t border-gray-200">
-                                <div className="pt-3 text-sm text-gray-700 space-y-1">
-                                  <p><strong>Ocorrência:</strong> {report.occurrenceDateTime ? new Date(report.occurrenceDateTime).toLocaleString('pt-BR') : 'N/A'}</p>
-                                  <p><strong>Gravidade:</strong> <span className="font-semibold">{report.occurrenceSeverity || 'N/A'}</span></p>
-                                  <p><strong>Matrícula:</strong> {report.studentRegistration || 'N/A'}</p>
-                                  <p><strong>Responsável:</strong> {report.guardianName || 'N/A'}</p>
-                                  <p className="text-xs text-gray-500 pt-1">Salvo em: {new Date(report.savedAt).toLocaleString('pt-BR')}</p>
-                                </div>
-                                <div className="mt-3 flex items-center justify-end space-x-2">
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); onDeleteReport(report.id); }}
-                                        className="px-3 py-1.5 text-xs font-medium text-red-700 bg-red-100 rounded-md hover:bg-red-200 transition-colors"
-                                        aria-label={`Excluir relatório de ${report.studentName}`}
-                                    >
-                                        Excluir
-                                    </button>
-                                    <button
-                                        onClick={(e) => { e.stopPropagation(); onLoadReport(report.id); }}
-                                        className="px-3 py-1.5 text-xs font-medium text-white bg-emerald-600 rounded-md hover:bg-emerald-700 transition-colors"
-                                        aria-label={`Carregar relatório de ${report.studentName}`}
-                                    >
-                                        {report.id === currentReportId ? 'Editando' : 'Carregar'}
-                                    </button>
+                            <div className="mt-2 flex items-center justify-between">
+                                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${getSeverityBadge(report.occurrenceSeverity)}`}>{report.occurrenceSeverity || 'N/D'}</span>
+                                <div className="flex items-center space-x-2">
+                                    <button onClick={(e) => { e.stopPropagation(); onDeleteReport(report.id); }} className="px-3 py-1.5 text-xs font-medium text-red-700 bg-red-100 rounded-md hover:bg-red-200 transition-colors" aria-label={`Excluir relatório de ${report.studentName}`}>Excluir</button>
+                                    <button onClick={(e) => { e.stopPropagation(); handleLoadAndHighlight(report.id); }} className="px-3 py-1.5 text-xs font-medium text-white bg-emerald-600 rounded-md hover:bg-emerald-700 transition-colors" aria-label={`Carregar relatório de ${report.studentName}`}>{report.id === currentReportId ? 'Editando' : 'Carregar'}</button>
                                 </div>
                             </div>
                         </div>
                     </li>
-                )
-            })}
+            ))}
             </ul>
         )}
       </div>
+       <style>{`
+        @keyframes pulse-bg {
+          0%, 100% { background-color: white; }
+          50% { background-color: #d1fae5; } /* emerald-100 */
+        }
+        .animate-pulse-bg {
+          animation: pulse-bg 1.5s ease-in-out;
+        }
+      `}</style>
     </aside>
   );
 };

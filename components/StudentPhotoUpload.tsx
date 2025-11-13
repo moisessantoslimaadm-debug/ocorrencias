@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import type { ReportImage } from '../types';
 
 interface StudentPhotoUploadProps {
@@ -13,6 +13,7 @@ const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const StudentPhotoUpload: React.FC<StudentPhotoUploadProps> = ({ photo, onPhotoChange }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const fileToDataUrl = (file: File): Promise<ReportImage> => {
     return new Promise((resolve, reject) => {
@@ -69,6 +70,13 @@ const StudentPhotoUpload: React.FC<StudentPhotoUploadProps> = ({ photo, onPhotoC
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLLabelElement>) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        inputRef.current?.click();
+    }
+  };
+
   const handleRemove = () => {
     onPhotoChange(null);
     setError('');
@@ -99,11 +107,16 @@ const StudentPhotoUpload: React.FC<StudentPhotoUploadProps> = ({ photo, onPhotoC
           onDragEnter={handleDragEvents}
           onDragOver={handleDragEvents}
           onDragLeave={handleDragEvents}
+          onKeyDown={handleKeyDown}
+          tabIndex={0}
+          role="button"
+          aria-label="Carregar foto do aluno"
           className={`relative w-full border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors
             ${isDragging ? 'border-emerald-500 bg-emerald-50' : 'border-gray-300 hover:border-gray-400 bg-gray-50'}`}
         >
           <input
             id="student-photo-upload"
+            ref={inputRef}
             type="file"
             accept={ALLOWED_MIME_TYPES.join(',')}
             onChange={handleFileChange}

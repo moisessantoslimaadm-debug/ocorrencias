@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 
 interface ConfirmationModalProps {
   isOpen: boolean;
@@ -6,28 +6,67 @@ interface ConfirmationModalProps {
   onConfirm: () => void;
   title: string;
   children: React.ReactNode;
+  variant?: 'danger' | 'primary';
+  confirmText?: string;
+  cancelText?: string;
 }
 
-const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ isOpen, onClose, onConfirm, title, children }) => {
+const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ isOpen, onClose, onConfirm, title, children, variant = 'danger', confirmText = 'Confirmar', cancelText = 'Cancelar' }) => {
+  const modalRef = useRef<HTMLDivElement>(null);
+  const previouslyFocusedElement = useRef<HTMLElement | null>(null);
+
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose();
-      }
-    };
-
     if (isOpen) {
-      document.addEventListener('keydown', handleKeyDown);
-    }
+      previouslyFocusedElement.current = document.activeElement as HTMLElement;
+      const focusableElements = modalRef.current?.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      const firstElement = focusableElements?.[0];
+      // Delay focus slightly to ensure modal is fully rendered
+      setTimeout(() => firstElement?.focus(), 100);
 
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-    };
+      const handleKeyDown = (event: KeyboardEvent) => {
+        if (event.key === 'Escape') {
+          onClose();
+        }
+        if (event.key === 'Tab') {
+          if (!focusableElements || focusableElements.length === 0) return;
+
+          const firstElement = focusableElements[0];
+          const lastElement = focusableElements[focusableElements.length - 1];
+
+          if (event.shiftKey) { // Shift + Tab
+            if (document.activeElement === firstElement) {
+              lastElement.focus();
+              event.preventDefault();
+            }
+          } else { // Tab
+            if (document.activeElement === lastElement) {
+              firstElement.focus();
+              event.preventDefault();
+            }
+          }
+        }
+      };
+
+      document.addEventListener('keydown', handleKeyDown);
+
+      return () => {
+        document.removeEventListener('keydown', handleKeyDown);
+        previouslyFocusedElement.current?.focus();
+      };
+    }
   }, [isOpen, onClose]);
 
   if (!isOpen) {
     return null;
   }
+
+  const iconBgClass = variant === 'danger' ? 'bg-red-100' : 'bg-emerald-100';
+  const iconColorClass = variant === 'danger' ? 'text-red-600' : 'text-emerald-600';
+  const confirmButtonClass = variant === 'danger' 
+    ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500' 
+    : 'bg-emerald-600 hover:bg-emerald-700 focus:ring-emerald-500';
 
   return (
     <div
@@ -37,11 +76,11 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ isOpen, onClose, 
       aria-modal="true"
       onClick={onClose}
     >
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full m-4" onClick={e => e.stopPropagation()}>
+      <div ref={modalRef} className="bg-white rounded-lg shadow-xl max-w-md w-full m-4" onClick={e => e.stopPropagation()}>
         <div className="p-6">
           <div className="flex items-start">
-            <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
-              <svg className="h-6 w-6 text-red-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+            <div className={`mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full ${iconBgClass} sm:mx-0 sm:h-10 sm:w-10`}>
+              <svg className={`h-6 w-6 ${iconColorClass}`} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
             </div>
@@ -60,17 +99,17 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ isOpen, onClose, 
         <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse rounded-b-lg">
           <button
             type="button"
-            className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-600 text-base font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm transition"
+            className={`w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm transition ${confirmButtonClass}`}
             onClick={onConfirm}
           >
-            Confirmar Exclusão
+            {confirmText}
           </button>
           <button
             type="button"
             className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 sm:mt-0 sm:w-auto sm:text-sm transition"
             onClick={onClose}
           >
-            Cancelar
+            {cancelText}
           </button>
         </div>
       </div>

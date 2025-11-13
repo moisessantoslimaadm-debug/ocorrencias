@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import type { ReportImage } from '../types';
 
 interface ImageUploadProps {
@@ -14,6 +14,7 @@ const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'
 const ImageUpload: React.FC<ImageUploadProps> = ({ images, onImagesChange }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [error, setError] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const fileToDataUrl = (file: File): Promise<ReportImage> => {
     return new Promise((resolve, reject) => {
@@ -81,6 +82,13 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ images, onImagesChange }) => 
     }
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLLabelElement>) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        inputRef.current?.click();
+    }
+  };
+
   const handleDelete = (index: number) => {
     const updatedImages = images.filter((_, i) => i !== index);
     onImagesChange(updatedImages);
@@ -94,11 +102,16 @@ const ImageUpload: React.FC<ImageUploadProps> = ({ images, onImagesChange }) => 
         onDragEnter={handleDragEvents}
         onDragOver={handleDragEvents}
         onDragLeave={handleDragEvents}
+        onKeyDown={handleKeyDown}
+        tabIndex={0}
+        role="button"
+        aria-label="Carregar imagens de evidência. Máximo de 5."
         className={`relative block w-full border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors
           ${isDragging ? 'border-emerald-500 bg-emerald-50' : 'border-gray-300 hover:border-gray-400 bg-gray-50'}`}
       >
         <input
           id="image-upload"
+          ref={inputRef}
           type="file"
           multiple
           accept={ALLOWED_MIME_TYPES.join(',')}

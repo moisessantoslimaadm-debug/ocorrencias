@@ -32,6 +32,21 @@
         background: #555;
       }
 
+      /* Consistent focus styles for keyboard accessibility */
+      *:focus-visible {
+        outline: 3px solid #34d399; /* Tailwind's emerald-400 */
+        outline-offset: 2px;
+        border-radius: 4px;
+      }
+      /* Let Tailwind's ring utility handle focus for form inputs */
+      input:focus-visible, textarea:focus-visible, select:focus-visible {
+        outline: none;
+      }
+      /* Remove outline from modal backdrop when clicked */
+      div[role="dialog"]:focus-visible {
+        outline: none;
+      }
+
       /* Print-specific styles */
       @media print {
         body {

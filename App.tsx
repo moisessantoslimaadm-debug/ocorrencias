@@ -1,17 +1,22 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { GoogleGenAI } from "@google/genai";
-import type { OccurrenceReport, SavedReport, ReportImage, GeminiAnalysisResult, Modification } from './types';
-import SectionHeader from './components/SectionHeader';
-import InputField from './components/InputField';
-import TextAreaField from './components/TextAreaField';
-import SelectField from './components/SelectField';
+import type { OccurrenceReport, SavedReport, ReportImage, GeminiAnalysisResult, Modification, FormErrors } from './types';
+
+// New Component Imports
+import AppHeader from './components/AppHeader';
+import TabIdentificacao from './components/tabs/TabIdentificacao';
+import TabOcorrencia from './components/tabs/TabOcorrencia';
+import TabEvidencias from './components/tabs/TabEvidencias';
+import TabFinalizacao from './components/tabs/TabFinalizacao';
+import LoginScreen from './components/LoginScreen'; // Import LoginScreen
+
 import PrintableReport from './components/PrintableReport';
 import HistoryPanel from './components/HistoryPanel';
-import ImageUpload from './components/ImageUpload';
-import StudentPhotoUpload from './components/StudentPhotoUpload';
 import Toast from './components/Toast';
 import ConfirmationModal from './components/ConfirmationModal';
 import GeminiAnalysisModal from './components/GeminiAnalysisModal';
+import { seedData } from './data/seedData';
+import Dropdown from './components/Dropdown';
 
 // Add type declarations for CDN scripts
 declare global {
@@ -23,8 +28,28 @@ declare global {
 
 const DRAFT_STORAGE_KEY = 'schoolOccurrenceReportFormData';
 const HISTORY_STORAGE_KEY = 'schoolOccurrenceReportHistory';
+const AUTH_SESSION_KEY = 'pioe_auth_session';
 
-const calculateAge = (dob: string): string => {
+const TABS = [
+  'Identificação',
+  'Ocorrência',
+  'Evidências e Ações',
+  'Finalização'
+];
+
+export const FIELD_TO_TAB_MAP: { [key in keyof FormErrors]?: number } = {
+  // Tab 0: Identificação
+  schoolUnit: 0, municipality: 0, uf: 0,
+  studentName: 0, studentDob: 0, studentRegistration: 0,
+  guardianPhone: 0, guardianEmail: 0,
+  // Tab 1: Ocorrência
+  occurrenceDateTime: 1, occurrenceLocation: 1, occurrenceSeverity: 1,
+  occurrenceTypes: 1, occurrenceOtherDescription: 1, detailedDescription: 1,
+  // Tab 3: Finalização
+  reporterName: 3, reporterDate: 3,
+};
+
+export const calculateAge = (dob: string): string => {
   if (!dob) return '';
   const birthDate = new Date(dob);
   const today = new Date();
@@ -137,6 +162,10 @@ const getInitialHistory = (): SavedReport[] => {
         try {
             const parsedHistory = JSON.parse(savedHistory);
             if (Array.isArray(parsedHistory)) {
+                // Return seed data if history is empty array, meaning user cleared it.
+                if (parsedHistory.length === 0) {
+                    return seedData;
+                }
                 return parsedHistory.map(report => {
                     // Migration for old history records
                     if (!('occurrenceDateTime' in report) && report.occurrenceDate && report.occurrenceTime) {
@@ -155,16 +184,17 @@ const getInitialHistory = (): SavedReport[] => {
                     };
                 }) as SavedReport[];
             }
-        } catch (error) {
+        } catch (error)
+        {
             console.error("Failed to parse history data from localStorage", error);
             localStorage.removeItem(HISTORY_STORAGE_KEY);
         }
     }
-    return [];
+    // If no history exists in storage, initialize with seed data.
+    return seedData;
 };
 
-
-const occurrenceTypeLabels: { key: keyof OccurrenceReport['occurrenceTypes']; label: string }[] = [
+export const occurrenceTypeLabels: { key: keyof OccurrenceReport['occurrenceTypes']; label: string }[] = [
     { key: 'physicalAssault', label: 'Agressão física' },
     { key: 'verbalAssault', label: 'Agressão verbal/ofensas' },
     { key: 'bullying', label: 'Situação de bullying' },
@@ -175,7 +205,7 @@ const occurrenceTypeLabels: { key: keyof OccurrenceReport['occurrenceTypes']; la
     { key: 'other', label: 'Outros' },
 ];
 
-const severityOptions = [
+export const severityOptions = [
     { value: 'Leve', label: 'Leve' },
     { value: 'Moderada', label: 'Moderada' },
     { value: 'Grave', label: 'Grave' },
@@ -187,8 +217,8 @@ const validateStudentRegistration = (value: string): string => {
   if (value.length > maxLength) {
     return `O número de matrícula não pode exceder ${maxLength} caracteres.`;
   }
-  if (!/^[a-zA-Z0-9]*$/.test(value)) {
-    return 'O número de matrícula deve conter apenas letras e números.';
+  if (!/^[a-zA-Z0-9-]*$/.test(value)) {
+    return 'A matrícula deve conter apenas letras, números e hífens.';
   }
   return '';
 };
@@ -196,20 +226,28 @@ const validateStudentRegistration = (value: string): string => {
 // More robust email validation regex
 const EMAIL_REGEX = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
 
-type FormErrors = Partial<Record<keyof OccurrenceReport | 'occurrenceTypes' | 'guardianPhone', string>>;
-
-
 function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
+    // Check session storage for auth flag
+    return sessionStorage.getItem(AUTH_SESSION_KEY) === 'true';
+  });
+
   const [formData, setFormData] = useState<OccurrenceReport & { id?: string }>(getInitialDraftData);
   const [history, setHistory] = useState<SavedReport[]>(getInitialHistory);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
-  const [toast, setToast] = useState<{ message: string; type: 'success' } | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' } | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [reportToDelete, setReportToDelete] = useState<SavedReport | null>(null);
+  const [isClearModalOpen, setIsClearModalOpen] = useState(false);
   const [autoSaveMessage, setAutoSaveMessage] = useState('');
+  const [lastSubmittedReport, setLastSubmittedReport] = useState<OccurrenceReport | null>(null);
+  const [activeTab, setActiveTab] = useState(0);
+  const [tabErrors, setTabErrors] = useState<Record<number, boolean>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingReportId, setEditingReportId] = useState<string | undefined>(formData.id);
+
 
   // Gemini AI State
   const [isGeminiModalOpen, setIsGeminiModalOpen] = useState(false);
@@ -217,56 +255,61 @@ function App() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [geminiError, setGeminiError] = useState<string | null>(null);
 
+  const handleLogin = () => {
+    sessionStorage.setItem(AUTH_SESSION_KEY, 'true');
+    setIsAuthenticated(true);
+  };
 
-  // Auto-save draft every 60 seconds
+  const handleLogout = () => {
+    sessionStorage.removeItem(AUTH_SESSION_KEY);
+    setIsAuthenticated(false);
+  };
+
+  // Auto-save draft every 30 seconds
   useEffect(() => {
+    if (!isAuthenticated) return; // Don't run if not authenticated
+
     const intervalId = setInterval(() => {
-      // Don't save if the form was just submitted or is in a pristine default state
       const isPristine = JSON.stringify(formData) === JSON.stringify(getDefaultFormData());
       if (!isSubmitted && !isPristine) {
         localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(formData));
         const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
         setAutoSaveMessage(`Rascunho salvo automaticamente às ${time}`);
-        // Message fades out after 5 seconds
         setTimeout(() => setAutoSaveMessage(''), 5000);
       }
-    }, 60000); // 60 seconds
+    }, 30000); // 30 seconds
 
-    return () => {
-      clearInterval(intervalId);
-    };
-  }, [formData, isSubmitted]);
+    return () => clearInterval(intervalId);
+  }, [formData, isSubmitted, isAuthenticated]);
 
 
   // Warn user before leaving if there are unsaved changes
   useEffect(() => {
+    if (!isAuthenticated) return;
+
     const hasUnsavedChanges = () => {
-      // Check if there's a draft in local storage that isn't the default empty form
       const draft = localStorage.getItem(DRAFT_STORAGE_KEY);
-      // We only want to trigger the warning if there's a meaningful draft saved
       return !!draft && draft !== JSON.stringify(getDefaultFormData());
     };
 
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       if (hasUnsavedChanges()) {
         event.preventDefault();
-        // Standard for most browsers
         event.returnValue = '';
-        return ''; // Required for some older browsers
+        return '';
       }
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  }, []); // Run only once on component mount
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isAuthenticated]);
 
 
   useEffect(() => {
-    localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history));
-  }, [history]);
+    if (isAuthenticated) {
+        localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history));
+    }
+  }, [history, isAuthenticated]);
   
   const validateForm = (): FormErrors => {
     const newErrors: FormErrors = {};
@@ -277,17 +320,20 @@ function App() {
     ];
 
     requiredFields.forEach(field => {
-      if (!formData[field]) {
-        newErrors[field] = 'Este campo é obrigatório.';
+      if (!formData[field as keyof OccurrenceReport]) {
+        newErrors[field as keyof OccurrenceReport] = 'Este campo é obrigatório.';
       }
     });
+    
+    // Validate DOB is not in the future
+    if (formData.studentDob && new Date(formData.studentDob) > new Date()) {
+        newErrors.studentDob = 'A data de nascimento não pode ser no futuro.';
+    }
 
     if (formData.guardianPhone) {
         const phoneDigits = formData.guardianPhone.replace(/\D/g, '');
-        // A valid number must have 10 (DDD + 8 digits) or 11 digits (DDD + 9 digits).
-        // The field is optional, so we only validate if it's not empty.
         if (phoneDigits.length > 0 && ![10, 11].includes(phoneDigits.length)) {
-            newErrors.guardianPhone = 'Número de telefone inválido. Deve conter 10 ou 11 dígitos, incluindo o DDD.';
+            newErrors.guardianPhone = 'Telefone inválido. Deve conter DDD + 8 ou 9 dígitos.';
         }
     }
 
@@ -314,12 +360,15 @@ function App() {
 
   const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    
+  
     if (name === 'guardianEmail') {
-      if (value && !EMAIL_REGEX.test(value)) {
+      const trimmedValue = value.trim();
+      if (trimmedValue !== value) {
+        setFormData(prev => ({ ...prev, guardianEmail: trimmedValue }));
+      }
+      if (trimmedValue && !EMAIL_REGEX.test(trimmedValue)) {
         setErrors(prev => ({ ...prev, guardianEmail: 'Por favor, insira um endereço de e-mail válido.' }));
       } else {
-        // Clear error if the field is valid or empty
         setErrors(prev => ({ ...prev, guardianEmail: undefined }));
       }
     }
@@ -327,20 +376,28 @@ function App() {
     if (name === 'guardianPhone') {
         const phoneDigits = value.replace(/\D/g, '');
         if (phoneDigits.length > 0 && ![10, 11].includes(phoneDigits.length)) {
-            setErrors(prev => ({ ...prev, guardianPhone: 'Número de telefone inválido. Deve conter 10 ou 11 dígitos, incluindo o DDD.' }));
+            setErrors(prev => ({ ...prev, guardianPhone: 'Telefone inválido. Deve conter DDD + 8 ou 9 dígitos.' }));
         } else {
-            // Clear error if the field is valid or empty
             setErrors(prev => ({ ...prev, guardianPhone: undefined }));
         }
     }
   };
+  
+  const clearTabError = useCallback((fieldName: keyof FormErrors) => {
+    const tabIndex = FIELD_TO_TAB_MAP[fieldName];
+    if (tabIndex !== undefined && tabErrors[tabIndex]) {
+        setTabErrors(prev => ({ ...prev, [tabIndex]: false }));
+    }
+  }, [tabErrors]);
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target as { name: keyof OccurrenceReport, value: string };
-    
-    if (errors[name as keyof FormErrors]) {
-      setErrors(prev => ({ ...prev, [name]: undefined }));
+    const fieldName = name as keyof FormErrors;
+
+    if (errors[fieldName]) {
+      setErrors(prev => ({ ...prev, [fieldName]: undefined }));
     }
+    clearTabError(fieldName);
 
     if (name === 'studentRegistration') {
         const errorMessage = validateStudentRegistration(value);
@@ -351,16 +408,22 @@ function App() {
         const newState = { ...prev, [name]: value };
         if (name === 'studentDob') {
             newState.studentAge = calculateAge(value);
+            if (new Date(value) > new Date()) {
+                setErrors(prevErrors => ({ ...prevErrors, studentDob: 'A data de nascimento não pode ser no futuro.' }));
+            } else {
+                 setErrors(prevErrors => ({ ...prevErrors, studentDob: undefined }));
+            }
         }
         return newState;
     });
-  }, [errors]);
+  }, [errors, clearTabError]);
 
   const handleCheckboxChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, checked } = e.target as { name: keyof OccurrenceReport['occurrenceTypes'], checked: boolean };
     
     if(errors.occurrenceTypes) {
         setErrors(prev => ({...prev, occurrenceTypes: undefined}));
+        clearTabError('occurrenceTypes');
     }
 
     setFormData(prev => ({
@@ -370,7 +433,7 @@ function App() {
         [name]: checked,
       },
     }));
-  }, [errors.occurrenceTypes]);
+  }, [errors.occurrenceTypes, clearTabError]);
 
   const handleImagesChange = useCallback((images: ReportImage[]) => {
     setFormData(prev => ({
@@ -387,49 +450,83 @@ function App() {
   }, []);
 
   const handleClear = () => {
+    setIsClearModalOpen(true);
+  };
+
+  const confirmClear = () => {
     localStorage.removeItem(DRAFT_STORAGE_KEY);
     setFormData(getDefaultFormData());
     setErrors({});
+    setTabErrors({});
+    setActiveTab(0);
     setIsSubmitted(false);
-    setSuccessMessage('');
+    setLastSubmittedReport(null);
+    setIsClearModalOpen(false);
+    setEditingReportId(undefined);
   };
+
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setIsSubmitting(true);
     
     const validationErrors = validateForm();
     if (Object.keys(validationErrors).length > 0) {
         setErrors(validationErrors);
-        const firstErrorKey = Object.keys(validationErrors)[0];
-        const firstErrorElement = document.getElementById(firstErrorKey);
-        if (firstErrorElement) {
-          firstErrorElement.focus({ preventScroll: true });
-          firstErrorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        const newTabErrors: Record<number, boolean> = {};
+        let firstErrorTab: number | null = null;
+
+        for (const key of Object.keys(validationErrors) as Array<keyof FormErrors>) {
+            const tabIndex = FIELD_TO_TAB_MAP[key];
+            if (tabIndex !== undefined) {
+                newTabErrors[tabIndex] = true;
+                if (firstErrorTab === null) {
+                    firstErrorTab = tabIndex;
+                }
+            }
         }
+        setTabErrors(newTabErrors);
+
+        if (firstErrorTab !== null) {
+            setActiveTab(firstErrorTab);
+        }
+
+        const firstErrorKey = Object.keys(validationErrors)[0];
+        setTimeout(() => {
+            const firstErrorElement = document.getElementById(firstErrorKey);
+            if (firstErrorElement) {
+                firstErrorElement.focus({ preventScroll: true });
+                firstErrorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }, 100);
+        setIsSubmitting(false);
         return;
     }
 
     setErrors({});
+    setTabErrors({});
 
     const { id, ...reportData } = formData;
+    let savedReport: SavedReport | undefined;
+
     setHistory(prevHistory => {
         if (id) {
-            setSuccessMessage('Relatório atualizado com sucesso!');
             setToast({ message: 'Relatório atualizado com sucesso!', type: 'success' });
 
             const newModification: Modification = { date: new Date().toISOString() };
             const updatedModificationHistory = [...(reportData.modificationHistory || []), newModification];
+            
+            const updatedReport = { 
+                ...reportData, 
+                id,
+                modificationHistory: updatedModificationHistory,
+                savedAt: new Date().toISOString() 
+            };
+            savedReport = updatedReport;
 
-            return prevHistory.map(report => 
-                report.id === id ? { 
-                    ...report, 
-                    ...reportData, 
-                    modificationHistory: updatedModificationHistory,
-                    savedAt: new Date().toISOString() 
-                } : report
-            );
+            return prevHistory.map(report => report.id === id ? updatedReport : report);
         } else {
-            setSuccessMessage('Ocorrência registrada com sucesso!');
             setToast({ message: 'Ocorrência registrada com sucesso!', type: 'success' });
             const newReport: SavedReport = {
                 ...reportData,
@@ -437,15 +534,20 @@ function App() {
                 savedAt: new Date().toISOString(),
                 modificationHistory: [],
             };
+            savedReport = newReport;
             return [newReport, ...prevHistory];
         }
     });
     
+    setLastSubmittedReport(savedReport || null);
     localStorage.removeItem(DRAFT_STORAGE_KEY);
     const newDefaultForm = getDefaultFormData();
     setFormData(newDefaultForm);
     setIsSubmitted(true);
+    setActiveTab(0);
+    setEditingReportId(undefined);
     window.scrollTo(0, 0);
+    setIsSubmitting(false);
   };
 
   const handleLoadReport = (id: string) => {
@@ -453,7 +555,7 @@ function App() {
     const isDraftDirty = draftData && draftData !== JSON.stringify(getDefaultFormData());
 
     if (isDraftDirty && formData.id !== id) {
-       const isConfirmed = window.confirm("Você tem certeza que deseja carregar este relatório? As alterações não salvas no formulário atual serão perdidas.");
+       const isConfirmed = window.confirm("Você tem certeza que deseja carregar este relatório? O rascunho atual será perdido.");
        if (!isConfirmed) return;
     }
 
@@ -472,14 +574,21 @@ function App() {
           reporterDate: currentDate,
         };
         setFormData(loadedData);
-        // Save the loaded data as the current draft
         localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(loadedData));
 
         setIsSubmitted(false);
-        setSuccessMessage('');
         setErrors({});
+        setTabErrors({});
+        setActiveTab(0);
+        setLastSubmittedReport(null);
+        setEditingReportId(reportToLoad.id);
         window.scrollTo(0, 0);
     }
+  };
+
+  const handleSaveDraft = () => {
+    localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(formData));
+    setToast({ message: 'Rascunho salvo com sucesso!', type: 'info' });
   };
 
   const handleDeleteReport = (id: string) => {
@@ -494,7 +603,7 @@ function App() {
     if (reportToDelete) {
         setHistory(prev => prev.filter(report => report.id !== reportToDelete.id));
         if (formData.id === reportToDelete.id) {
-            handleClear();
+            confirmClear();
         }
     }
     setIsDeleteModalOpen(false);
@@ -502,20 +611,20 @@ function App() {
   };
   
   const handleImportReports = (importedReports: SavedReport[]) => {
-    const isConfirmed = window.confirm(
-      "Você tem certeza que deseja importar este backup? Todos os relatórios existentes no navegador serão substituídos. Esta ação não pode ser desfeita."
-    );
-    if (isConfirmed) {
-      setHistory(importedReports);
-      setToast({ message: 'Backup importado com sucesso!', type: 'success' });
-    }
+    setHistory(importedReports);
+    setToast({ message: 'Backup importado com sucesso!', type: 'success' });
   };
 
+  const reportForExport = isSubmitted ? lastSubmittedReport : (editingReportId ? formData : null);
+
   const handlePrint = () => {
+    if (!reportForExport) return;
     window.print();
   };
-  
+
   const handleDownloadPdf = async () => {
+    if (!reportForExport) return;
+
     if (!window.jspdf || !window.html2canvas) {
       alert('A biblioteca de PDF ainda não foi carregada. Tente novamente em alguns segundos.');
       return;
@@ -535,7 +644,7 @@ function App() {
     reportElement.style.position = 'absolute';
     reportElement.style.left = '-9999px';
     reportElement.style.top = '0';
-    reportElement.style.width = '210mm';
+    reportElement.style.width = '210mm'; // A4 width
 
     try {
       const canvas = await window.html2canvas(reportElement, { scale: 2, useCORS: true });
@@ -563,7 +672,7 @@ function App() {
         heightLeft -= (pageHeight - margin * 2);
       }
       
-      pdf.save(`relatorio-${formData.studentName.replace(/ /g, '_') || 'ocorrencia'}.pdf`);
+      pdf.save(`relatorio-${reportForExport.studentName.replace(/ /g, '_') || 'ocorrencia'}.pdf`);
     } catch (error) {
       console.error("Erro ao gerar PDF:", error);
       alert("Ocorreu um erro ao gerar o PDF. Por favor, tente novamente.");
@@ -573,6 +682,58 @@ function App() {
       setIsDownloadingPdf(false);
     }
   };
+
+  const handleExportSingleCsv = () => {
+    if (!reportForExport) return;
+
+    const headers = [
+      "Unidade Escolar", "Município", "UF", "Data de Preenchimento", "Horário de Preenchimento",
+      "Nome do Aluno", "Foto do Aluno", "Data de Nascimento", "Idade", "Ano/Série", "Turno", "Nº de Matrícula",
+      "Nome do Responsável", "Parentesco", "Telefone do Responsável", "E-mail do Responsável", "Endereço do Responsável",
+      "Data e Hora da Ocorrência", "Local da Ocorrência", "Gravidade da Ocorrência", "Tipos de Ocorrência", "Descrição 'Outros'",
+      "Descrição Detalhada", "Evidências (Imagens)", "Pessoas Envolvidas", "Providências Imediatas",
+      "Encaminhamentos Realizados", "Observações do Serviço Social",
+      "Responsável pelo Registro", "Data do Registro", "Assinatura Responsável Legal", "Data Assinatura Resp. Legal",
+      "Assinatura Assistente Social", "Data Assinatura Assist. Social",
+      "Histórico de Modificações"
+    ];
+
+    const escapeCsvCell = (cell: any): string => {
+        const cellStr = String(cell ?? '').replace(/"/g, '""');
+        return `"${cellStr}"`;
+    };
+
+    const checkedTypes = occurrenceTypeLabels
+        .filter(({ key }) => reportForExport.occurrenceTypes[key])
+        .map(({ label }) => label)
+        .join('; ');
+    
+    const imageNames = reportForExport.images.map(img => img.name).join('; ');
+    const modificationDates = reportForExport.modificationHistory.map(mod => new Date(mod.date).toLocaleString('pt-BR')).join('; ');
+    
+    const row = [
+      reportForExport.schoolUnit, reportForExport.municipality, reportForExport.uf, reportForExport.fillDate, reportForExport.fillTime,
+      reportForExport.studentName, reportForExport.studentPhoto ? 'Sim' : 'Não', reportForExport.studentDob, reportForExport.studentAge, reportForExport.studentGrade, reportForExport.studentShift, reportForExport.studentRegistration,
+      reportForExport.guardianName, reportForExport.guardianRelationship, reportForExport.guardianPhone, reportForExport.guardianEmail, reportForExport.guardianAddress,
+      reportForExport.occurrenceDateTime, reportForExport.occurrenceLocation, reportForExport.occurrenceSeverity, checkedTypes, reportForExport.occurrenceOtherDescription,
+      reportForExport.detailedDescription, imageNames || "Nenhuma", reportForExport.peopleInvolved, reportForExport.immediateActions,
+      reportForExport.referralsMade, reportForExport.socialServiceObservation,
+      reportForExport.reporterName, reportForExport.reporterDate, reportForExport.guardianSignatureName, reportForExport.guardianSignatureDate,
+      reportForExport.socialWorkerSignatureName, reportForExport.socialWorkerSignatureDate,
+      modificationDates || "Nenhuma"
+    ];
+    
+    const csvContent = [headers.join(','), row.map(escapeCsvCell).join(',')].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-t;-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `relatorio_${reportForExport.studentName.replace(/ /g, '_') || 'ocorrencia'}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
 
   const handleAnalyzeWithAI = async () => {
     if (!formData.detailedDescription) return;
@@ -635,7 +796,30 @@ function App() {
   };
 
 
-  const submitButtonText = formData.id ? 'Atualizar Relatório' : 'Registrar Ocorrência';
+  const submitButtonText = editingReportId ? 'Atualizar Relatório' : 'Registrar Ocorrência';
+  const showExportOptions = isSubmitted || !!editingReportId;
+  const progressPercentage = useMemo(() => ((activeTab + 1) / TABS.length) * 100, [activeTab]);
+
+
+  const renderTabContent = () => {
+    const commonProps = { formData, handleChange, handleBlur, errors };
+    switch (activeTab) {
+      case 0:
+        return <TabIdentificacao {...commonProps} onPhotoChange={handleStudentPhotoChange} />;
+      case 1:
+        return <TabOcorrencia {...commonProps} onCheckboxChange={handleCheckboxChange} onAnalyze={handleAnalyzeWithAI} isAnalyzing={isAnalyzing} />;
+      case 2:
+        return <TabEvidencias {...commonProps} onImagesChange={handleImagesChange} />;
+      case 3:
+        return <TabFinalizacao {...commonProps} />;
+      default:
+        return null;
+    }
+  };
+
+  if (!isAuthenticated) {
+    return <LoginScreen onLogin={handleLogin} />;
+  }
 
   return (
     <>
@@ -644,225 +828,155 @@ function App() {
           
           <main className="flex-grow lg:order-1">
             <div className="bg-white rounded-lg shadow-2xl overflow-hidden">
-              <header className="bg-emerald-700 p-6 text-white text-center">
-                <h1 className="text-2xl md:text-3xl font-bold">FICHA DE REGISTRO DE OCORRÊNCIA ESCOLAR</h1>
-                <p className="text-emerald-200 mt-1">Plataforma Inteligente de Registro de Situações Críticas</p>
-              </header>
+              <AppHeader onLogout={handleLogout} />
 
               <div className="p-6 md:p-8">
-                {isSubmitted && successMessage && (
+                {isSubmitted && (
                   <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6" role="alert">
                     <p className="font-bold">Sucesso!</p>
-                    <p>{successMessage} Agora você pode imprimir ou baixar o relatório do formulário limpo.</p>
+                    <p>Ocorrência registrada com sucesso! Agora você pode exportar, imprimir ou baixar o relatório.</p>
+                  </div>
+                )}
+                {editingReportId && (
+                  <div className="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 mb-6 flex justify-between items-center" role="status">
+                      <div>
+                        <p className="font-bold">Modo de Edição</p>
+                        <p>Você está editando o relatório de <strong>{formData.studentName}</strong>.</p>
+                      </div>
+                      <button 
+                        onClick={() => {
+                            const isConfirmed = window.confirm("Você tem certeza que deseja cancelar a edição? Todas as alterações não salvas serão perdidas.");
+                            if (isConfirmed) confirmClear();
+                        }}
+                        className="px-3 py-1.5 text-sm font-medium text-blue-800 bg-blue-200 rounded-md hover:bg-blue-300"
+                      >
+                        Cancelar Edição
+                      </button>
                   </div>
                 )}
 
                 <form onSubmit={handleSubmit} noValidate>
-                  <div className="bg-gray-50 p-4 rounded-md border border-gray-200 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <InputField id="schoolUnit" name="schoolUnit" label="Unidade Escolar" type="text" value={formData.schoolUnit} onChange={handleChange} className="lg:col-span-4" error={errors.schoolUnit} />
-                    <InputField id="municipality" name="municipality" label="Município" type="text" value={formData.municipality} onChange={handleChange} className="lg:col-span-3" error={errors.municipality} />
-                    <InputField id="uf" name="uf" label="UF" type="text" value={formData.uf} onChange={handleChange} error={errors.uf} />
-                    <InputField id="fillDate" name="fillDate" label="Data de Preenchimento" type="date" value={formData.fillDate} onChange={handleChange} className="lg:col-span-2" description="Selecione ou digite a data." error={errors.fillDate} readOnly/>
-                    <InputField id="fillTime" name="fillTime" label="Horário" type="time" value={formData.fillTime} onChange={handleChange} className="lg:col-span-2" error={errors.fillTime} />
-                  </div>
-
-                  <SectionHeader title="1. IDENTIFICAÇÃO DO ALUNO ENVOLVIDO" />
-                  <div className="bg-white p-4 rounded-b-md border border-t-0 border-gray-200 grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="md:col-span-1 flex justify-center items-start pt-4">
-                      <StudentPhotoUpload photo={formData.studentPhoto} onPhotoChange={handleStudentPhotoChange} />
-                    </div>
-                    <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <InputField id="studentName" name="studentName" label="Nome completo" type="text" value={formData.studentName} onChange={handleChange} className="sm:col-span-2" error={errors.studentName} />
-                      <InputField id="studentDob" name="studentDob" label="Data de nascimento" type="date" value={formData.studentDob} onChange={handleChange} description="Selecione ou digite a data." error={errors.studentDob} />
-                      <InputField id="studentAge" name="studentAge" label="Idade (anos)" type="number" value={formData.studentAge} onChange={handleChange} readOnly />
-                      <InputField id="studentRegistration" name="studentRegistration" label="Nº de matrícula" type="text" value={formData.studentRegistration} onChange={handleChange} error={errors.studentRegistration} />
-                      <InputField id="studentGrade" name="studentGrade" label="Ano/Série" type="text" value={formData.studentGrade} onChange={handleChange} />
-                      <InputField id="studentShift" name="studentShift" label="Turno" type="text" value={formData.studentShift} onChange={handleChange} />
-                    </div>
-                  </div>
-                  
-                  <SectionHeader title="2. RESPONSÁVEL LEGAL" />
-                  <div className="bg-white p-4 rounded-b-md border border-t-0 border-gray-200 grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <InputField id="guardianName" name="guardianName" label="Nome completo" type="text" value={formData.guardianName} onChange={handleChange} />
-                    <InputField id="guardianRelationship" name="guardianRelationship" label="Parentesco" type="text" value={formData.guardianRelationship} onChange={handleChange} />
-                    <InputField id="guardianPhone" name="guardianPhone" label="Contato telefônico" type="tel" value={formData.guardianPhone} onChange={handleChange} onBlur={handleBlur} placeholder="(00) 00000-0000" error={errors.guardianPhone} description="Deve conter DDD + 8 ou 9 dígitos." />
-                    <InputField id="guardianEmail" name="guardianEmail" label="E-mail de contato" type="email" value={formData.guardianEmail} onChange={handleChange} onBlur={handleBlur} placeholder="exemplo@email.com" error={errors.guardianEmail} />
-                    <InputField id="guardianAddress" name="guardianAddress" label="Endereço completo" type="text" value={formData.guardianAddress} onChange={handleChange} className="md:col-span-2" />
-                  </div>
-                  
-                  <SectionHeader title="3. CARACTERIZAÇÃO DA OCORRÊNCIA" />
-                  <div className="bg-white p-4 rounded-b-md border border-t-0 border-gray-200 space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <InputField id="occurrenceDateTime" name="occurrenceDateTime" label="Data e hora da ocorrência" type="datetime-local" value={formData.occurrenceDateTime} onChange={handleChange} description="Selecione ou digite a data e hora." error={errors.occurrenceDateTime} />
-                      <InputField id="occurrenceLocation" name="occurrenceLocation" label="Local onde ocorreu" type="text" value={formData.occurrenceLocation} onChange={handleChange} error={errors.occurrenceLocation} />
-                      <SelectField 
-                        id="occurrenceSeverity" 
-                        name="occurrenceSeverity" 
-                        label="Gravidade da ocorrência" 
-                        value={formData.occurrenceSeverity} 
-                        onChange={handleChange} 
-                        options={severityOptions} 
-                        error={errors.occurrenceSeverity}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Tipo de ocorrência:</label>
-                      {errors.occurrenceTypes && <p className="text-xs text-red-600 mb-2" role="alert">{errors.occurrenceTypes}</p>}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
-                        {occurrenceTypeLabels.map(({ key, label }) => (
-                          <div key={key} className="flex items-center">
-                            <input
-                              id={key}
-                              name={key}
-                              type="checkbox"
-                              checked={!!formData.occurrenceTypes[key]}
-                              onChange={handleCheckboxChange}
-                              className="h-4 w-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
-                            />
-                            <label htmlFor={key} className="ml-2 block text-sm text-gray-900">{label}</label>
-                          </div>
-                        ))}
-                      </div>
-                      {formData.occurrenceTypes.other && (
-                        <InputField id="occurrenceOtherDescription" name="occurrenceOtherDescription" label="Especifique 'Outros'" type="text" value={formData.occurrenceOtherDescription} onChange={handleChange} className="mt-2" error={errors.occurrenceOtherDescription} />
-                      )}
+                  <div className="mb-6">
+                    <div className="bg-gray-200 rounded-full h-2.5">
+                      <div className="bg-emerald-500 h-2.5 rounded-full transition-all duration-500" style={{ width: `${progressPercentage}%` }}></div>
                     </div>
                   </div>
 
-                  <SectionHeader title="4. DESCRIÇÃO DETALHADA DO FATO" />
-                  <div className="bg-white p-4 rounded-b-md border border-t-0 border-gray-200">
-                    <div className="flex justify-end mb-2">
-                      <button 
-                        type="button" 
-                        onClick={handleAnalyzeWithAI} 
-                        disabled={!formData.detailedDescription || isAnalyzing}
-                        className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-emerald-700 bg-emerald-100 rounded-md hover:bg-emerald-200 disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed transition-colors"
-                      >
-                         {isAnalyzing ? (
-                            <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                          ) : (
-                            <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                              <path fillRule="evenodd" d="M9.622 3.203a.75.75 0 01.756 0l1.25 1.25a.75.75 0 010 1.06l-1.25 1.25a.75.75 0 01-1.06 0l-1.25-1.25a.75.75 0 010-1.06l1.25-1.25zM12.5 6.5a.75.75 0 00-1.06 0l-1.25 1.25a.75.75 0 000 1.06l1.25 1.25a.75.75 0 001.06 0l1.25-1.25a.75.75 0 000-1.06L12.5 6.5zM5.378 8.203a.75.75 0 01.756 0l1.25 1.25a.75.75 0 010 1.06l-1.25 1.25a.75.75 0 01-1.06 0L4.122 10.51a.75.75 0 010-1.06l1.25-1.25zM10 11.25a.75.75 0 00-1.06 0l-1.25 1.25a.75.75 0 000 1.06l1.25 1.25a.75.75 0 001.06 0l1.25-1.25a.75.75 0 000-1.06L10 11.25z" clipRule="evenodd" />
-                            </svg>
-                          )}
-                        <span>{isAnalyzing ? 'Analisando...' : 'Analisar com IA'}</span>
-                      </button>
-                    </div>
-                    <TextAreaField id="detailedDescription" name="detailedDescription" label="" subtitle="Relatar de forma objetiva, com sequência cronológica dos acontecimentos." value={formData.detailedDescription} onChange={handleChange} rows={6} error={errors.detailedDescription} maxLength={2000} />
-                  </div>
-
-                  <SectionHeader title="5. EVIDÊNCIAS (IMAGENS)" />
-                  <div className="bg-white p-4 rounded-b-md border border-t-0 border-gray-200">
-                    <ImageUpload images={formData.images} onImagesChange={handleImagesChange} />
-                  </div>
-
-                  <SectionHeader title="6. PESSOAS ENVOLVIDAS" />
-                  <div className="bg-white p-4 rounded-b-md border border-t-0 border-gray-200">
-                    <TextAreaField id="peopleInvolved" name="peopleInvolved" label="" subtitle="Alunos, funcionários, terceiros – incluir nome, cargo/função e vínculo." value={formData.peopleInvolved} onChange={handleChange} />
-                  </div>
-
-                  <SectionHeader title="7. PROVIDÊNCIAS IMEDIATAS ADOTADAS" />
-                  <div className="bg-white p-4 rounded-b-md border border-t-0 border-gray-200">
-                    <TextAreaField id="immediateActions" name="immediateActions" label="" value={formData.immediateActions} onChange={handleChange} />
-                  </div>
-
-                  <SectionHeader title="8. ENCAMINHAMENTOS REALIZADOS" />
-                  <div className="bg-white p-4 rounded-b-md border border-t-0 border-gray-200">
-                    <TextAreaField id="referralsMade" name="referralsMade" label="" subtitle="Órgãos da rede, familiares, equipe interna." value={formData.referralsMade} onChange={handleChange} />
-                  </div>
-
-                  <SectionHeader title="9. AVALIAÇÃO E OBSERVAÇÕES DO SERVIÇO SOCIAL" />
-                  <div className="bg-white p-4 rounded-b-md border border-t-0 border-gray-200">
-                    <TextAreaField id="socialServiceObservation" name="socialServiceObservation" label="" subtitle="(se houver)" value={formData.socialServiceObservation} onChange={handleChange} />
-                  </div>
-
-                  {formData.id && formData.modificationHistory && formData.modificationHistory.length > 0 && (
-                    <>
-                      <SectionHeader title="10. HISTÓRICO DE MODIFICAÇÕES" />
-                      <div className="bg-white p-4 rounded-b-md border border-t-0 border-gray-200">
-                        <ul className="space-y-2 text-sm text-gray-600">
-                          {formData.modificationHistory.map((mod, index) => (
-                            <li key={index} className="pl-4 border-l-2 border-emerald-200">
-                              Relatório atualizado em: <span className="font-semibold">{new Date(mod.date).toLocaleString('pt-BR')}</span>.
-                            </li>
-                          ))}
-                        </ul>
-                        <p className="text-xs text-gray-500 mt-3 italic">Nota: A data de criação do relatório pode ser vista no painel de histórico lateral sob "Salvo em".</p>
-                      </div>
-                    </>
-                  )}
-
-                  <SectionHeader title="11. ASSINATURA" />
-                  <div className="bg-white p-4 rounded-b-md border border-t-0 border-gray-200 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                    <InputField id="reporterName" name="reporterName" label="Responsável pelo registro" type="text" value={formData.reporterName} onChange={handleChange} error={errors.reporterName} />
-                    <InputField id="reporterDate" name="reporterDate" label="Data" type="date" value={formData.reporterDate} onChange={handleChange} description="Selecione ou digite a data." ariaLabel="Data do registro" error={errors.reporterDate} readOnly />
-                    <InputField id="guardianSignatureName" name="guardianSignatureName" label="Responsável legal do aluno" type="text" value={formData.guardianSignatureName} onChange={handleChange} />
-                    <InputField id="guardianSignatureDate" name="guardianSignatureDate" label="Data" type="date" value={formData.guardianSignatureDate} onChange={handleChange} description="Selecione ou digite a data." ariaLabel="Data da assinatura do responsável legal" />
-                    <InputField id="socialWorkerSignatureName" name="socialWorkerSignatureName" label="Assistente Social" type="text" value={formData.socialWorkerSignatureName} onChange={handleChange} />
-                    <InputField id="socialWorkerSignatureDate" name="socialWorkerSignatureDate" label="Data" type="date" value={formData.socialWorkerSignatureDate} onChange={handleChange} description="Selecione ou digite a data." ariaLabel="Data da assinatura do assistente social" />
-                  </div>
-
-                  <div className="mt-8 flex flex-col sm:flex-row justify-end items-center gap-4">
-                    <div className="mr-auto">
-                        {autoSaveMessage && (
-                            <p className="text-sm text-gray-500 transition-opacity duration-500 animate-fade-in" role="status">
-                                {autoSaveMessage}
-                            </p>
-                        )}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleClear}
-                      className="w-full sm:w-auto px-6 py-3 border border-gray-300 rounded-md shadow-sm text-base font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition"
-                    >
-                      {formData.id ? 'Limpar e Criar Novo' : 'Limpar Formulário'}
-                    </button>
-                    
-                    {isSubmitted ? (
-                      <>
+                  <div className="border-b border-gray-200 mb-6">
+                    <nav className="-mb-px flex space-x-6" aria-label="Tabs">
+                      {TABS.map((tabName, index) => (
                         <button
+                          key={tabName}
                           type="button"
-                          onClick={handleDownloadPdf}
-                          disabled={isDownloadingPdf}
-                          className="w-full sm:w-auto px-6 py-3 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition disabled:bg-blue-400 disabled:cursor-not-allowed flex items-center justify-center"
+                          onClick={() => setActiveTab(index)}
+                          className={`relative whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors
+                            ${activeTab === index 
+                              ? 'border-emerald-500 text-emerald-600' 
+                              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            }`}
                         >
-                          {isDownloadingPdf ? (
-                            <>
-                              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                              </svg>
-                              <span>Baixando...</span>
-                            </>
-                          ) : (
-                            'Baixar PDF'
-                          )}
+                          {tabName}
+                          {tabErrors[index] && 
+                            <span className="absolute top-2 -right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full" title="Esta aba contém erros">
+                                <span className="sr-only">Esta aba contém erros</span>
+                            </span>
+                          }
                         </button>
+                      ))}
+                    </nav>
+                  </div>
+
+                  <div className="min-h-[400px]">
+                    {renderTabContent()}
+                  </div>
+
+                  <div className="mt-8 pt-5 border-t border-gray-200">
+                    <div className="flex justify-between items-center mb-6">
                         <button
-                          type="button"
-                          onClick={handlePrint}
-                          className="w-full sm:w-auto px-6 py-3 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition"
+                            type="button"
+                            onClick={() => setActiveTab(p => p - 1)}
+                            disabled={activeTab === 0}
+                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                         >
-                          Imprimir Relatório
+                            Voltar
                         </button>
-                      </>
-                    ) : (
-                      <button
-                        type="submit"
-                        className="w-full sm:w-auto px-6 py-3 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition"
-                      >
-                        {submitButtonText}
-                      </button>
-                    )}
+                        <span className="text-sm text-gray-500">
+                          Etapa {activeTab + 1} de {TABS.length}
+                        </span>
+                        <button
+                            type="button"
+                            onClick={() => setActiveTab(p => p + 1)}
+                            disabled={activeTab === TABS.length - 1}
+                            className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 border border-transparent rounded-md hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                            Avançar
+                        </button>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+                      <div className="flex-grow">
+                          {autoSaveMessage && (
+                              <p className="text-sm text-gray-500 transition-opacity duration-500 animate-fade-in" role="status">
+                                  {autoSaveMessage}
+                              </p>
+                          )}
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
+                           <button
+                            type="button"
+                            onClick={handleClear}
+                            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition"
+                          >
+                            Limpar Formulário
+                          </button>
+                          {editingReportId && (
+                            <button
+                                type="button"
+                                onClick={handleSaveDraft}
+                                className="w-full sm:w-auto px-4 py-2 border border-emerald-300 rounded-md shadow-sm text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition"
+                            >
+                                Salvar Rascunho
+                            </button>
+                          )}
+                          
+                          {showExportOptions ? (
+                              <Dropdown
+                                  buttonText="Exportar Relatório"
+                                  isLoading={isDownloadingPdf}
+                                  loadingText="Baixando..."
+                              >
+                                  <button onClick={handlePrint} className="text-left w-full block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Imprimir Relatório</button>
+                                  <button onClick={handleDownloadPdf} className="text-left w-full block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Baixar como PDF</button>
+                                  <button onClick={handleExportSingleCsv} className="text-left w-full block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Exportar para CSV</button>
+                              </Dropdown>
+                          ) : (
+                            <button
+                              type="submit"
+                              disabled={isSubmitting}
+                              className="w-full sm:w-auto px-6 py-3 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition flex items-center justify-center disabled:bg-emerald-400 disabled:cursor-not-allowed"
+                            >
+                              {isSubmitting ? (
+                                <>
+                                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                  </svg>
+                                  <span>{editingReportId ? 'Atualizando...' : 'Registrando...'}</span>
+                                </>
+                              ) : (
+                                submitButtonText
+                              )}
+                            </button>
+                          )}
+                      </div>
+                    </div>
                   </div>
                 </form>
               </div>
             </div>
             <footer className="text-center text-gray-500 text-sm mt-8 pb-4">
-                <p>Plataforma de Registro de Ocorrências</p>
+                <p>Plataforma Inteligente de Registro de Ocorrências</p>
                 <p>&copy; {new Date().getFullYear()}. Todos os direitos reservados.</p>
               </footer>
           </main>
@@ -873,13 +987,13 @@ function App() {
                 onLoadReport={handleLoadReport} 
                 onDeleteReport={handleDeleteReport}
                 onImportReports={handleImportReports}
-                currentReportId={formData.id} 
+                currentReportId={editingReportId} 
               />
           </aside>
 
         </div>
       </div>
-      <PrintableReport reportData={formData} />
+      <PrintableReport reportData={reportForExport} />
       {toast && (
         <Toast
           message={toast.message}
@@ -891,11 +1005,24 @@ function App() {
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={confirmDelete}
-        title="Confirmar Exclusão de Relatório"
+        title="Confirmar Exclusão"
+        confirmText="Sim, Excluir"
+        variant="danger"
       >
         Você tem certeza que deseja excluir o relatório de <strong>{reportToDelete?.studentName || 'este aluno'}</strong>?
         <br />
         Esta ação não pode ser desfeita.
+      </ConfirmationModal>
+      <ConfirmationModal
+        isOpen={isClearModalOpen}
+        onClose={() => setIsClearModalOpen(false)}
+        onConfirm={confirmClear}
+        title="Limpar Formulário"
+        confirmText="Sim, Limpar"
+        variant="danger"
+      >
+        Você tem certeza que deseja limpar todos os campos do formulário? 
+        O rascunho salvo será perdido.
       </ConfirmationModal>
       <GeminiAnalysisModal
         isOpen={isGeminiModalOpen}
@@ -912,6 +1039,19 @@ function App() {
         }
         .animate-fade-in {
           animation: fade-in 0.5s ease-out forwards;
+        }
+        @keyframes fade-in-up {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .animate-fade-in-up {
+            animation: fade-in-up 0.3s ease-out forwards;
         }
       `}</style>
     </>

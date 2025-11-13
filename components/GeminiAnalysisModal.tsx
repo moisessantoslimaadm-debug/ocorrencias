@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { GeminiAnalysisResult } from '../types';
 
 interface GeminiAnalysisModalProps {
@@ -11,6 +11,69 @@ interface GeminiAnalysisModalProps {
 }
 
 const GeminiAnalysisModal: React.FC<GeminiAnalysisModalProps> = ({ isOpen, onClose, analysisResult, onApplySuggestion, isLoading, error }) => {
+  const modalRef = useRef<HTMLDivElement>(null);
+  const previouslyFocusedElement = useRef<HTMLElement | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      previouslyFocusedElement.current = document.activeElement as HTMLElement;
+      
+      const focusableElements = modalRef.current?.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      const firstElement = focusableElements?.[0];
+      // Delay focus slightly to ensure modal is fully rendered and content loaded
+      setTimeout(() => firstElement?.focus(), 100);
+
+      const handleKeyDown = (event: KeyboardEvent) => {
+        if (event.key === 'Escape') {
+          onClose();
+        }
+        if (event.key === 'Tab') {
+          if (!focusableElements || focusableElements.length === 0) return;
+
+          const firstElement = focusableElements[0];
+          const lastElement = focusableElements[focusableElements.length - 1];
+
+          if (event.shiftKey) { // Shift + Tab
+            if (document.activeElement === firstElement) {
+              lastElement.focus();
+              event.preventDefault();
+            }
+          } else { // Tab
+            if (document.activeElement === lastElement) {
+              firstElement.focus();
+              event.preventDefault();
+            }
+          }
+        }
+      };
+
+      document.addEventListener('keydown', handleKeyDown);
+
+      return () => {
+        document.removeEventListener('keydown', handleKeyDown);
+        previouslyFocusedElement.current?.focus();
+      };
+    }
+  }, [isOpen, onClose]);
+
+  const handleCopyToClipboard = (text: string, fieldName: string) => {
+    if (!navigator.clipboard) {
+      // Fallback for older browsers
+      alert("A função de copiar não é suportada neste navegador.");
+      return;
+    }
+    navigator.clipboard.writeText(text).then(() => {
+        setCopiedField(fieldName);
+        setTimeout(() => setCopiedField(null), 2000); // Reset after 2 seconds
+    }).catch(err => {
+        console.error("Falha ao copiar texto: ", err);
+        alert("Não foi possível copiar o texto.");
+    });
+  };
+
   if (!isOpen) {
     return null;
   }
@@ -36,7 +99,7 @@ const GeminiAnalysisModal: React.FC<GeminiAnalysisModalProps> = ({ isOpen, onClo
       aria-modal="true"
       onClick={onClose}
     >
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full m-4" onClick={e => e.stopPropagation()}>
+      <div ref={modalRef} className="bg-white rounded-lg shadow-xl max-w-2xl w-full m-4" onClick={e => e.stopPropagation()}>
         <div className="p-6 border-b border-gray-200 flex justify-between items-start">
             <div className="flex items-center gap-3">
                  <div className="flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-emerald-100">
@@ -51,7 +114,8 @@ const GeminiAnalysisModal: React.FC<GeminiAnalysisModalProps> = ({ isOpen, onClo
                     <p className="text-sm text-gray-500">Sugestões geradas por Gemini</p>
                  </div>
             </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-500">
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-500 rounded-full p-1">
+            <span className="sr-only">Fechar</span>
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -98,9 +162,14 @@ const GeminiAnalysisModal: React.FC<GeminiAnalysisModalProps> = ({ isOpen, onClo
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <h4 className="text-base font-semibold text-gray-800">Sugestões de Ações Imediatas</h4>
-                  <button onClick={() => onApplySuggestion('immediateActions', analysisResult.immediateActions)} className="px-2.5 py-1 text-xs font-medium text-emerald-700 bg-emerald-100 rounded-md hover:bg-emerald-200 transition-colors">
-                    Aplicar
-                  </button>
+                   <div className="flex items-center gap-2">
+                     <button onClick={() => handleCopyToClipboard(analysisResult.immediateActions, 'actions')} className="px-2.5 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors">
+                       {copiedField === 'actions' ? 'Copiado!' : 'Copiar'}
+                     </button>
+                     <button onClick={() => onApplySuggestion('immediateActions', analysisResult.immediateActions)} className="px-2.5 py-1 text-xs font-medium text-emerald-700 bg-emerald-100 rounded-md hover:bg-emerald-200 transition-colors">
+                       Aplicar
+                     </button>
+                   </div>
                 </div>
                 <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-md border">{analysisResult.immediateActions}</p>
               </div>
@@ -108,9 +177,14 @@ const GeminiAnalysisModal: React.FC<GeminiAnalysisModalProps> = ({ isOpen, onClo
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <h4 className="text-base font-semibold text-gray-800">Sugestões de Encaminhamentos</h4>
-                   <button onClick={() => onApplySuggestion('referralsMade', analysisResult.referrals)} className="px-2.5 py-1 text-xs font-medium text-emerald-700 bg-emerald-100 rounded-md hover:bg-emerald-200 transition-colors">
-                    Aplicar
-                  </button>
+                   <div className="flex items-center gap-2">
+                      <button onClick={() => handleCopyToClipboard(analysisResult.referrals, 'referrals')} className="px-2.5 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors">
+                        {copiedField === 'referrals' ? 'Copiado!' : 'Copiar'}
+                      </button>
+                      <button onClick={() => onApplySuggestion('referralsMade', analysisResult.referrals)} className="px-2.5 py-1 text-xs font-medium text-emerald-700 bg-emerald-100 rounded-md hover:bg-emerald-200 transition-colors">
+                        Aplicar
+                      </button>
+                   </div>
                 </div>
                 <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-md border">{analysisResult.referrals}</p>
               </div>
