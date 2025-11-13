@@ -83,7 +83,7 @@ const InputField: React.FC<InputFieldProps> = ({ id, name, label, type, value, o
         aria-describedby={describedBy || undefined}
         aria-label={ariaLabel || label}
       />
-      {error && <p id={`${id}-error`} className="mt-1 text-xs text-red-600" role="alert">{error}</p>}
+      {error && <p id={`${id}-error`} className="mt-1 text-xs text-red-600 animate-fade-in-up-fast" role="alert">{error}</p>}
     </div>
   );
 };

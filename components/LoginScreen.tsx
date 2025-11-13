@@ -7,7 +7,7 @@ interface LoginScreenProps {
 // NOTE: In a real-world application, this would be handled by a backend server.
 // The password should never be stored in plaintext in the frontend code.
 // This is for demonstration purposes only.
-const CORRECT_PASSWORD = 'ProInov@2024!';
+const CORRECT_PASSWORD = 'itaberaba2026';
 
 const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
   const [password, setPassword] = useState('');
@@ -33,7 +33,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
-      <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow-2xl m-4">
+      <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow-2xl m-4 animate-fade-in-up">
         <div className="text-center">
             <div className="mb-6 border-b pb-4">
                 <p className="text-sm font-semibold text-gray-700">Prefeitura Municipal de Itaberaba</p>

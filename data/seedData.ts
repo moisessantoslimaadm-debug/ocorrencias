@@ -2,8 +2,8 @@ import type { SavedReport } from '../types';
 
 // Placeholder base64 images for demonstration purposes
 const studentPhoto1 = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NkY2RjZCI+PHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDptMCAzYzEuNjYgMCAzIDEuMzQgMyAzcy0xLjM0IDMtMyAzLTMtMS4zNC0zLTMgMS4zNC0zIDMtM3ptMCAxNC4yYy0yLjUgMC00LjcxLTEuMjgtNi4yMi0zLjIzLjgxLTEuNDggMi4yOS0yLjQ3IDQuMjItMi40NyAxLjkzIDAgMy40MS45OSA0LjIyIDIuNDctMS41MSAyLjA1LTMuNzIgMy4yMy02LjIyIDMuMjN6Ii8+PC9zdmc+";
-const studentPhoto2 = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NkY2RjZCI+PHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDptMCAzYzEuNjYgMCAzIDEuMzQgMyAzcy0xLjM0IDMtMyAzLTMtMS4zNC0zLTMgMS4zNC0zIDMtM3ptMCAxNC4yYy0yLjUgMC00LjcxLTEuMjgtNi4yMi0zLjIzLjgxLTEuNDggMi4yOS0yLjQ3IDQuMjItMi40NyAxLjkzIDAgMy40MS45OSA0LjIyIDIuNDctMS41MSAyLjA1LTMuNzIgMy4yMy02LjIyIDMuMjN6Ii8+";
-const studentPhoto3 = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NkY2RjZCI+PHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDptMCAzYzEuNjYgMCAzIDEuMzQgMyAzcy0xLjM0IDMtMyAzLTMtMS4zNC0zLTMgMS4zNC0zIDMtM3ptMCAxNC4yYy0yLjUgMC00LjcxLTEuMjgtNi4yMi0zLjIzLjgxLTEuNDggMi4yOS0yLjQ3IDQuMjItMi40NyAxLjkzIDAgMy40MS45OSA0LjIyIDIuNDctMS41MSAyLjA1LTMuNzIgMy4yMy02LjIyIDMuMjN6Ii8+";
+const studentPhoto2 = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NkY2RjZCI+PHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDptMCAzYzEuNjYgMCAzIDEuMzQgMyAzcy0xLjM0IDMtMyAzLTMtMS4zNC0zLTMgMS4zNC0zIDMtM3ptMCAxNC4yYy0yLjUgMC00LjcxLTEuMjgtNi4yMi0zLjIzLjgxLTEuNDggMi4yOS0yLjQ3IDQuMjItMi40NyAxLjkzIDAgMy40MS45OSA0LjIyIDIuNDctMS41MSAyLjA1LTMuNzIgMy4yMy02LjIyIDMuMjN6Ii8+PC9zdmc+";
+const studentPhoto3 = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2NkY2RjZCI+PHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDptMCAzYzEuNjYgMCAzIDEuMzQgMyAzcy0xLjM0IDMtMyAzLTMtMS4zNC0zLTMgMS4zNC0zIDMtM3ptMCAxNC4yYy0yLjUgMC00LjcxLTEuMjgtNi4yMi0zLjIzLjgxLTEuNDggMi4yOS0yLjQ3IDQuMjItMi40NyAxLjkzIDAgMy40MS45OSA0LjIyIDIuNDctMS41MSAyLjA1LTMuNzIgMy4yMy02LjIyIDMuMjN6Ii8+PC9zdmc+";
 
 const evidenceImage1 = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMjQgMjQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzY2NjY2NiIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik0zIDNoMTh2MThIM3oiLz48cGF0aCBkPSJtMyAxOCAzLjI3LTMuMjdhMiAyIDAgMCAxIDMuNDYgMEwxMiAxOCIvPjxwYXRoIGQ9Im0xMiA5IDItMnMyLjUgMy41IDUgMSIvPjxjaXJjbGUgY3g9IjgiIGN5PSI3IiByPSIxIi8+PC9zdmc+";
 const evidenceImage2 = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAiIGhlaWdodD0iMTAwIiB2aWV3Qm94PSIwIDAgMjQgMjQiIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzY2NjY2NiIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiPjxwYXRoIGQ9Ik0zIDNoMTh2MThIM3oiLz48cGF0aCBkPSJtMyAxOCAzLjI3LTMuMjdhMiAyIDAgMCAxIDMuNDYgMEwxMiAxOCIvPjxwYXRoIGQ9Im0xMiA5IDItMnMyLjUgMy41IDUgMSIvPjxjaXJjbGUgY3g9IjgiIGN5PSI3IiByPSIxIi8+PC9zdmc+";
@@ -37,17 +37,17 @@ export const seedData: SavedReport[] = [
         detailedDescription: "Durante o intervalo, o aluno Lucas se envolveu em uma discussão com o colega João (9º Ano). A discussão escalou para agressões verbais e empurrões. Outros alunos presenciaram e a inspeção interveio. Lucas alega ter sido provocado.",
         images: [],
         peopleInvolved: "Lucas Pereira (aluno, 9º Ano), João Silva (aluno, 9º Ano), Inspetor Carlos (funcionário)",
-        immediateActions: "Os alunos foram separados e levados à diretoria. Os responsáveis foram contatados por telefone.",
-        referralsMade: "Conversa com a coordenação pedagógica agendada para ambos os alunos e seus responsáveis.",
-        socialServiceObservation: "",
+        immediateActions: "Os alunos foram separados e levados à diretoria. Os responsáveis foram contatados por telefone e agendada uma reunião.",
+        referralsMade: "Conversa com a coordenação pedagógica agendada para ambos os alunos e seus responsáveis. Mediação de conflitos será proposta.",
+        socialServiceObservation: "Acompanhar a interação entre os alunos nos próximos dias e verificar se há histórico de conflitos.",
         reporterName: "Ana Carolina Souza",
         reporterDate: "2024-05-16",
-        guardianSignatureName: "",
-        guardianSignatureDate: "",
+        guardianSignatureName: "Mariana Pereira",
+        guardianSignatureDate: "2024-05-17",
         socialWorkerSignatureName: "",
         socialWorkerSignatureDate: "",
         savedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago
-        modificationHistory: [],
+        modificationHistory: [{ date: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString() }],
     },
     {
         id: "1715886000002",
@@ -71,18 +71,18 @@ export const seedData: SavedReport[] = [
         occurrenceDateTime: "2024-05-14T11:30",
         occurrenceLocation: "Saída da escola",
         occurrenceSeverity: "Grave",
-        occurrenceTypes: { physicalAssault: false, verbalAssault: false, bullying: true, socialRisk: true, prohibitedSubstances: false, other: false, propertyDamage: false, truancy: false },
+        occurrenceTypes: { physicalAssault: false, verbalAssault: true, bullying: true, socialRisk: true, prohibitedSubstances: false, other: false, propertyDamage: false, truancy: false },
         occurrenceOtherDescription: "",
         detailedDescription: "A aluna Juliana tem relatado à coordenação ser alvo constante de apelidos e exclusão por um grupo de colegas de sala. Hoje, na saída, teve seu material jogado no chão e foi ameaçada. A aluna está muito abalada emocionalmente e com medo de vir à escola.",
         images: [],
-        peopleInvolved: "Juliana Santos (aluna, 1º E.M.), Grupo de alunas da mesma sala (a identificar).",
-        immediateActions: "Acolhimento da aluna pela equipe pedagógica. Contato com os pais de Juliana para reunião de urgência.",
+        peopleInvolved: "Juliana Santos (aluna, 1º E.M.), Grupo de alunas da mesma sala (identificadas como Carla, Bruna e Letícia).",
+        immediateActions: "Acolhimento da aluna pela equipe pedagógica. Contato com os pais de Juliana para reunião de urgência. Responsáveis das outras alunas também foram convocados.",
         referralsMade: "Encaminhamento para o psicólogo escolar e notificação ao Conselho Tutelar devido à gravidade e recorrência da situação de bullying.",
-        socialServiceObservation: "Caso necessita de acompanhamento contínuo para avaliar o impacto psicossocial e a segurança da aluna.",
+        socialServiceObservation: "Caso necessita de acompanhamento contínuo para avaliar o impacto psicossocial e a segurança da aluna. Iniciar projeto anti-bullying com a turma.",
         reporterName: "Fernanda Lima",
         reporterDate: "2024-05-15",
-        guardianSignatureName: "",
-        guardianSignatureDate: "",
+        guardianSignatureName: "Ricardo Santos",
+        guardianSignatureDate: "2024-05-15",
         socialWorkerSignatureName: "Marcia Gomes",
         socialWorkerSignatureDate: "2024-05-15",
         savedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(), // 4 days ago
@@ -115,13 +115,13 @@ export const seedData: SavedReport[] = [
         detailedDescription: "Durante a aula de Educação Física, o aluno Pedro chutou a bola acidentalmente contra uma das janelas da quadra, quebrando o vidro. Não houve feridos. O aluno se mostrou arrependido e se prontificou a ajudar.",
         images: [{ name: "janela_quebrada.jpg", dataUrl: evidenceImage1 }],
         peopleInvolved: "Pedro Henrique Oliveira (aluno, 7º Ano), Professor Marcos (Ed. Física)",
-        immediateActions: "O local foi isolado para evitar acidentes. A mãe do aluno foi comunicada sobre o ocorrido e o custo do reparo.",
+        immediateActions: "O local foi isolado para evitar acidentes. A mãe do aluno foi comunicada sobre o ocorrido e o custo do reparo. A família concordou em arcar com os custos.",
         referralsMade: "Nenhum.",
         socialServiceObservation: "",
         reporterName: "Marcos Andrade",
         reporterDate: "2024-05-14",
-        guardianSignatureName: "",
-        guardianSignatureDate: "",
+        guardianSignatureName: "Carla Oliveira",
+        guardianSignatureDate: "2024-05-14",
         socialWorkerSignatureName: "",
         socialWorkerSignatureDate: "",
         savedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
@@ -155,12 +155,12 @@ export const seedData: SavedReport[] = [
         images: [],
         peopleInvolved: "Beatriz Costa (aluna, 8º Ano), Inspetora Lúcia",
         immediateActions: "Aluna foi encaminhada para a sala de aula e o avô foi contatado para uma conversa sobre as ausências recorrentes da neta.",
-        referralsMade: "Agendamento de reunião com a coordenação e o responsável para discutir possível dificuldade de aprendizagem.",
-        socialServiceObservation: "",
+        referralsMade: "Agendamento de reunião com a coordenação, o responsável e a professora de Matemática para investigar a causa da recusa e traçar um plano de apoio.",
+        socialServiceObservation: "Verificar se há outras questões familiares ou de saúde influenciando o comportamento da aluna.",
         reporterName: "Lúcia Pereira",
         reporterDate: "2024-05-13",
-        guardianSignatureName: "",
-        guardianSignatureDate: "",
+        guardianSignatureName: "Antônio Costa",
+        guardianSignatureDate: "2024-05-14",
         socialWorkerSignatureName: "",
         socialWorkerSignatureDate: "",
         savedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
@@ -195,13 +195,13 @@ export const seedData: SavedReport[] = [
         peopleInvolved: "Rafael Martins (aluno, 3º E.M.), Inspetor Roberto",
         immediateActions: "O objeto foi retido na diretoria e a mãe do aluno foi convocada para uma reunião imediata.",
         referralsMade: "Suspensão de 3 dias letivos conforme regimento interno. Palestra sobre os malefícios do tabagismo e substâncias análogas será oferecida à turma.",
-        socialServiceObservation: "Considerar a inclusão do aluno em programas de prevenção ao uso de drogas.",
+        socialServiceObservation: "O aluno foi encaminhado para o programa de saúde mental da prefeitura para avaliação e acompanhamento devido a relatos de ansiedade. A família aceitou o encaminhamento.",
         reporterName: "Roberto Lima",
         reporterDate: "2024-05-12",
         guardianSignatureName: "Sônia Martins",
         guardianSignatureDate: "2024-05-12",
-        socialWorkerSignatureName: "",
-        socialWorkerSignatureDate: "",
+        socialWorkerSignatureName: "Cláudia Ribeiro",
+        socialWorkerSignatureDate: "2024-05-13",
         savedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
         modificationHistory: [],
     },

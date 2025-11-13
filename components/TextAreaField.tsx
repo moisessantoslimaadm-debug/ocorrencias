@@ -47,7 +47,7 @@ const TextAreaField: React.FC<TextAreaFieldProps> = ({ id, name, label, value, o
         aria-invalid={!!error}
         aria-describedby={errorId}
       />
-      {error && <p id={errorId} className="mt-1 text-xs text-red-600" role="alert">{error}</p>}
+      {error && <p id={errorId} className="mt-1 text-xs text-red-600 animate-fade-in-up-fast" role="alert">{error}</p>}
     </div>
   );
 };

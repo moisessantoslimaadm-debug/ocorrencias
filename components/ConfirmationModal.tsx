@@ -70,13 +70,13 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({ isOpen, onClose, 
 
   return (
     <div
-      className="non-printable fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+      className="non-printable fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 animate-backdrop-fade-in"
       aria-labelledby="modal-title"
       role="dialog"
       aria-modal="true"
       onClick={onClose}
     >
-      <div ref={modalRef} className="bg-white rounded-lg shadow-xl max-w-md w-full m-4" onClick={e => e.stopPropagation()}>
+      <div ref={modalRef} className="bg-white rounded-lg shadow-xl max-w-md w-full m-4 animate-scale-in" onClick={e => e.stopPropagation()}>
         <div className="p-6">
           <div className="flex items-start">
             <div className={`mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full ${iconBgClass} sm:mx-0 sm:h-10 sm:w-10`}>

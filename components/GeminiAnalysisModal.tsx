@@ -93,13 +93,13 @@ const GeminiAnalysisModal: React.FC<GeminiAnalysisModalProps> = ({ isOpen, onClo
 
   return (
     <div
-      className="non-printable fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60"
+      className="non-printable fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 animate-backdrop-fade-in"
       aria-labelledby="gemini-modal-title"
       role="dialog"
       aria-modal="true"
       onClick={onClose}
     >
-      <div ref={modalRef} className="bg-white rounded-lg shadow-xl max-w-2xl w-full m-4" onClick={e => e.stopPropagation()}>
+      <div ref={modalRef} className="bg-white rounded-lg shadow-xl max-w-2xl w-full m-4 animate-scale-in" onClick={e => e.stopPropagation()}>
         <div className="p-6 border-b border-gray-200 flex justify-between items-start">
             <div className="flex items-center gap-3">
                  <div className="flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-emerald-100">

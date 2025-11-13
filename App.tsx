@@ -832,13 +832,13 @@ function App() {
 
               <div className="p-6 md:p-8">
                 {isSubmitted && (
-                  <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6" role="alert">
+                  <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6 animate-fade-in-down" role="alert">
                     <p className="font-bold">Sucesso!</p>
                     <p>Ocorrência registrada com sucesso! Agora você pode exportar, imprimir ou baixar o relatório.</p>
                   </div>
                 )}
                 {editingReportId && (
-                  <div className="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 mb-6 flex justify-between items-center" role="status">
+                  <div className="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 mb-6 flex justify-between items-center animate-fade-in-down" role="status">
                       <div>
                         <p className="font-bold">Modo de Edição</p>
                         <p>Você está editando o relatório de <strong>{formData.studentName}</strong>.</p>
@@ -1052,6 +1052,34 @@ function App() {
         }
         .animate-fade-in-up {
             animation: fade-in-up 0.3s ease-out forwards;
+        }
+        @keyframes fade-in-down {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in-down {
+            animation: fade-in-down 0.3s ease-out forwards;
+        }
+        @keyframes backdrop-fade-in {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .animate-backdrop-fade-in {
+            animation: backdrop-fade-in 0.2s ease-out forwards;
+        }
+        @keyframes scale-in {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .animate-scale-in {
+            animation: scale-in 0.2s ease-out forwards;
+        }
+        @keyframes fade-in-up-fast {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in-up-fast {
+            animation: fade-in-up-fast 0.2s ease-out forwards;
         }
       `}</style>
     </>
