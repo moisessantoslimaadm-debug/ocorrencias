@@ -46,6 +46,7 @@ export const seedData: SavedReport[] = [
         guardianSignatureDate: "2024-05-17",
         socialWorkerSignatureName: "",
         socialWorkerSignatureDate: "",
+        status: "Em Análise",
         savedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago
         modificationHistory: [{ date: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString() }],
     },
@@ -85,6 +86,7 @@ export const seedData: SavedReport[] = [
         guardianSignatureDate: "2024-05-15",
         socialWorkerSignatureName: "Marcia Gomes",
         socialWorkerSignatureDate: "2024-05-15",
+        status: "Resolvido",
         savedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(), // 4 days ago
         modificationHistory: [],
     },
@@ -124,6 +126,7 @@ export const seedData: SavedReport[] = [
         guardianSignatureDate: "2024-05-14",
         socialWorkerSignatureName: "",
         socialWorkerSignatureDate: "",
+        status: "Resolvido",
         savedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
         modificationHistory: [],
     },
@@ -163,6 +166,7 @@ export const seedData: SavedReport[] = [
         guardianSignatureDate: "2024-05-14",
         socialWorkerSignatureName: "",
         socialWorkerSignatureDate: "",
+        status: "Em Análise",
         savedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
         modificationHistory: [],
     },
@@ -202,6 +206,7 @@ export const seedData: SavedReport[] = [
         guardianSignatureDate: "2024-05-12",
         socialWorkerSignatureName: "Cláudia Ribeiro",
         socialWorkerSignatureDate: "2024-05-13",
+        status: "Arquivado",
         savedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
         modificationHistory: [],
     },

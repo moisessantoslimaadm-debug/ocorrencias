@@ -1,19 +1,20 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import type { SavedReport } from '../types';
+import type { SavedReport, ReportStatus } from '../types';
 import OccurrenceChart from './OccurrenceChart';
 import SeverityDonutChart from './SeverityDonutChart';
 import Accordion from './Accordion';
+import { RECENT_SEARCHES_KEY, severityOptions, statusOptions } from '../constants';
+import MonthlyChart from './MonthlyChart';
+
 
 interface HistoryPanelProps {
   reports: SavedReport[];
   onLoadReport: (id: string) => void;
   onDeleteReport: (id: string) => void;
   onImportReports: (importedReports: SavedReport[]) => void;
+  onStatusChange: (id: string, newStatus: ReportStatus) => void;
   currentReportId?: string;
 }
-
-const RECENT_SEARCHES_KEY = 'pioe_recent_searches';
-const MAX_RECENT_SEARCHES = 5;
 
 const occurrenceTypeLabelsMap: Record<string, string> = {
     physicalAssault: 'Agressão física',
@@ -41,10 +42,12 @@ const isReportIncomplete = (report: SavedReport): boolean => {
     return !report.detailedDescription || !report.occurrenceLocation || !report.reporterName;
 };
 
-const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDeleteReport, onImportReports, currentReportId }) => {
+const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDeleteReport, onImportReports, onStatusChange, currentReportId }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [severityFilter, setSeverityFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [justLoadedReportId, setJustLoadedReportId] = useState<string | null>(null);
 
@@ -70,7 +73,7 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
     const trimmedTerm = term.trim();
     if (!trimmedTerm) return;
 
-    const newSearches = [trimmedTerm, ...recentSearches.filter(s => s !== trimmedTerm)].slice(0, MAX_RECENT_SEARCHES);
+    const newSearches = [trimmedTerm, ...recentSearches.filter(s => s !== trimmedTerm)].slice(0, 5);
     setRecentSearches(newSearches);
     localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(newSearches));
   };
@@ -84,6 +87,8 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
     setSearchTerm('');
     setStartDate('');
     setEndDate('');
+    setSeverityFilter('');
+    setStatusFilter('');
   };
 
   const filteredReports = useMemo(() => {
@@ -92,13 +97,15 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
         const occurrenceDatePart = report.occurrenceDateTime ? report.occurrenceDateTime.split('T')[0] : '';
         if (startDate && occurrenceDatePart && occurrenceDatePart < startDate) return false;
         if (endDate && occurrenceDatePart && occurrenceDatePart > endDate) return false;
+        if (severityFilter && report.occurrenceSeverity !== severityFilter) return false;
+        if (statusFilter && report.status !== statusFilter) return false;
         if (searchTerm) {
           const lowerCaseSearch = searchTerm.toLowerCase();
           return report.studentName?.toLowerCase().includes(lowerCaseSearch);
         }
         return true;
       })
-  }, [reports, startDate, endDate, searchTerm]);
+  }, [reports, startDate, endDate, searchTerm, severityFilter, statusFilter]);
   
   const handleLoadAndHighlight = (id: string) => {
     onLoadReport(id);
@@ -110,7 +117,7 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
     if (filteredReports.length === 0) return;
 
     const headers = [
-      "ID", "Data Salvo", "Unidade Escolar", "Município", "UF",
+      "ID", "Status", "Data Salvo", "Unidade Escolar", "Município", "UF",
       "Nome Aluno", "Data Nasc. Aluno", "Matrícula Aluno",
       "E-mail Responsável", "Data e Hora Ocorrência", "Local Ocorrência", "Gravidade",
       "Descrição Detalhada"
@@ -118,6 +125,7 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
 
     const rows = filteredReports.map(r => [
       r.id,
+      r.status,
       new Date(r.savedAt).toLocaleString('pt-BR'),
       r.schoolUnit,
       r.municipality,
@@ -223,6 +231,18 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
     }
   }
 
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+        case 'Novo': return 'bg-blue-100 text-blue-800';
+        case 'Em Análise': return 'bg-purple-100 text-purple-800';
+        case 'Resolvido': return 'bg-green-100 text-green-800';
+        case 'Arquivado': return 'bg-gray-200 text-gray-800';
+        default: return 'bg-gray-100 text-gray-800';
+    }
+  }
+  
+  const hasActiveFilters = searchTerm || startDate || endDate || severityFilter || statusFilter;
+
   return (
     <aside className="non-printable w-full bg-gray-50 p-4 rounded-lg shadow-inner self-start sticky top-8 space-y-4">
       <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept=".json" className="hidden" aria-hidden="true" />
@@ -232,8 +252,9 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
         <span className="text-sm font-medium bg-emerald-100 text-emerald-800 py-1 px-2.5 rounded-full">{reports.length}</span>
       </div>
 
-      <Accordion title="Dashboard" defaultOpen>
+      <Accordion title="Estatísticas" defaultOpen>
         <div className="space-y-4">
+            <MonthlyChart reports={reports} />
             <OccurrenceChart reports={reports} />
             <SeverityDonutChart reports={reports} />
         </div>
@@ -263,6 +284,24 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
                 </div>
               )}
             </div>
+            
+            <div className="grid grid-cols-2 gap-2">
+                 <div>
+                    <label htmlFor="status-filter" className="text-sm font-medium text-gray-600 mb-1 block">Status:</label>
+                    <select id="status-filter" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md shadow-sm text-sm focus:ring-emerald-500 focus:border-emerald-500">
+                        <option value="">Todos</option>
+                        {statusOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                    </select>
+                </div>
+                 <div>
+                    <label htmlFor="severity-filter" className="text-sm font-medium text-gray-600 mb-1 block">Gravidade:</label>
+                    <select id="severity-filter" value={severityFilter} onChange={e => setSeverityFilter(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md shadow-sm text-sm focus:ring-emerald-500 focus:border-emerald-500">
+                        <option value="">Todas</option>
+                        {severityOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                    </select>
+                </div>
+            </div>
+
             <div>
               <p className="text-sm font-medium text-gray-600 mb-1">Filtrar por data da ocorrência:</p>
               <div className="flex items-center gap-2">
@@ -271,7 +310,7 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
                 <div className="flex-1"><input type="date" id="end-date" title="Data de fim" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md shadow-sm text-sm focus:ring-emerald-500 focus:border-emerald-500" /></div>
               </div>
             </div>
-             {(startDate || endDate || searchTerm) && (
+             {hasActiveFilters && (
               <>
                 <p className="text-xs text-center text-gray-600 pt-1">
                     Exibindo {filteredReports.length} de {reports.length} relatórios.
@@ -332,12 +371,26 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
                                      <div className="flex-shrink-0" title="Relatório com campos importantes em branco"><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-yellow-500" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M8.257 3.099c.636-1.21 2.852-1.21 3.488 0l6.096 11.623c.664 1.269-.263 2.778-1.744 2.778H3.905c-1.48 0-2.408-1.509-1.744-2.778L8.257 3.099zM9 13a1 1 0 112 0 1 1 0 01-2 0zm1-5a1 1 0 00-1 1v2a1 1 0 102 0V9a1 1 0 00-1-1z" clipRule="evenodd" /></svg></div>
                                 )}
                             </div>
-                            <div className="mt-2 flex items-center justify-between">
-                                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${getSeverityBadge(report.occurrenceSeverity)}`}>{report.occurrenceSeverity || 'N/D'}</span>
-                                <div className="flex items-center space-x-2">
-                                    <button onClick={(e) => { e.stopPropagation(); onDeleteReport(report.id); }} className="px-3 py-1.5 text-xs font-medium text-red-700 bg-red-100 rounded-md hover:bg-red-200 transition-colors" aria-label={`Excluir relatório de ${report.studentName}`}>Excluir</button>
-                                    <button onClick={(e) => { e.stopPropagation(); handleLoadAndHighlight(report.id); }} className="px-3 py-1.5 text-xs font-medium text-white bg-emerald-600 rounded-md hover:bg-emerald-700 transition-colors" aria-label={`Carregar relatório de ${report.studentName}`}>{report.id === currentReportId ? 'Editando' : 'Carregar'}</button>
+                            <div className="mt-2 flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${getStatusBadge(report.status)}`}>{report.status}</span>
+                                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${getSeverityBadge(report.occurrenceSeverity)}`}>{report.occurrenceSeverity || 'N/D'}</span>
                                 </div>
+                                <div>
+                                    <select 
+                                        value={report.status} 
+                                        onChange={(e) => onStatusChange(report.id, e.target.value as ReportStatus)}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="text-xs border-gray-300 rounded-md shadow-sm focus:ring-emerald-500 focus:border-emerald-500"
+                                        aria-label={`Mudar status do relatório de ${report.studentName}`}
+                                    >
+                                        {statusOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                                    </select>
+                                </div>
+                            </div>
+                            <div className="mt-3 flex items-center justify-end space-x-2">
+                                <button onClick={(e) => { e.stopPropagation(); onDeleteReport(report.id); }} className="px-3 py-1.5 text-xs font-medium text-red-700 bg-red-100 rounded-md hover:bg-red-200 transition-colors" aria-label={`Excluir relatório de ${report.studentName}`}>Excluir</button>
+                                <button onClick={(e) => { e.stopPropagation(); handleLoadAndHighlight(report.id); }} className="px-3 py-1.5 text-xs font-medium text-white bg-emerald-600 rounded-md hover:bg-emerald-700 transition-colors" aria-label={`Carregar relatório de ${report.studentName}`}>{report.id === currentReportId ? 'Editando' : 'Carregar'}</button>
                             </div>
                         </div>
                     </li>

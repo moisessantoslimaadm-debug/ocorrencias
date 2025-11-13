@@ -11,6 +11,8 @@ export interface Modification {
   // userName: string;
 }
 
+export type ReportStatus = 'Novo' | 'Em Análise' | 'Resolvido' | 'Arquivado';
+
 export interface OccurrenceReport {
   schoolUnit: string;
   municipality: string;
@@ -61,6 +63,7 @@ export interface OccurrenceReport {
   socialWorkerSignatureName: string;
   socialWorkerSignatureDate: string;
   
+  status: ReportStatus;
   modificationHistory: Modification[];
 }
 

@@ -1,20 +1,7 @@
 import React, { useMemo } from 'react';
 import type { SavedReport } from '../types';
+import { occurrenceTypeLabels } from '../constants';
 
-interface OccurrenceChartProps {
-  reports: SavedReport[];
-}
-
-const occurrenceTypeLabelsMap: Record<string, string> = {
-    physicalAssault: 'Agressão física',
-    verbalAssault: 'Agressão verbal',
-    bullying: 'Bullying',
-    propertyDamage: 'Dano ao patrimônio',
-    truancy: 'Fuga/abandono',
-    socialRisk: 'Risco social',
-    prohibitedSubstances: 'Substâncias proibidas',
-    other: 'Outros',
-};
 
 const barColors = [
   'bg-emerald-500',
@@ -27,31 +14,28 @@ const barColors = [
   'bg-yellow-500',
 ];
 
-const OccurrenceChart: React.FC<OccurrenceChartProps> = ({ reports }) => {
+const OccurrenceChart: React.FC<{reports: SavedReport[]}> = ({ reports }) => {
   const chartData = useMemo(() => {
-    const counts: Record<string, number> = {};
-
-    Object.keys(occurrenceTypeLabelsMap).forEach(key => {
-        counts[key] = 0;
-    });
+    const counts = Object.fromEntries(occurrenceTypeLabels.map(item => [item.key, 0]));
 
     reports.forEach(report => {
       if (report.occurrenceTypes) {
-        Object.entries(report.occurrenceTypes).forEach(([key, isChecked]) => {
-          if (isChecked) {
-            counts[key] = (counts[key] || 0) + 1;
+        for (const key in report.occurrenceTypes) {
+          if (report.occurrenceTypes[key as keyof typeof report.occurrenceTypes]) {
+            if (key in counts) {
+                counts[key as keyof typeof counts]++;
+            }
           }
-        });
+        }
       }
     });
     
-    const sortedData = Object.entries(counts)
-      .map(([key, count], index) => ({
-        label: occurrenceTypeLabelsMap[key] || key,
-        count,
+    const sortedData = occurrenceTypeLabels
+      .map((item, index) => ({
+        label: item.label,
+        count: counts[item.key] || 0,
         color: barColors[index % barColors.length],
       }))
-      .filter(item => item.count > 0) // Only show items with count > 0
       .sort((a, b) => b.count - a.count);
 
     const maxCount = Math.max(...sortedData.map(d => d.count), 1);
@@ -60,7 +44,7 @@ const OccurrenceChart: React.FC<OccurrenceChartProps> = ({ reports }) => {
 
   }, [reports]);
 
-  if (reports.length === 0 || chartData.sortedData.length === 0) {
+  if (reports.length === 0) {
     return (
         <div className="bg-white p-4 rounded-lg border border-gray-200 text-center text-gray-500">
             <h3 className="text-base font-semibold text-gray-800 mb-2">Índice de Ocorrências</h3>

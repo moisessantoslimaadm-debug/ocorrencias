@@ -1,6 +1,8 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { GoogleGenAI } from "@google/genai";
-import type { OccurrenceReport, SavedReport, ReportImage, GeminiAnalysisResult, Modification, FormErrors } from './types';
+import type { OccurrenceReport, SavedReport, ReportImage, GeminiAnalysisResult, Modification, FormErrors, ReportStatus } from './types';
+import { DRAFT_STORAGE_KEY, HISTORY_STORAGE_KEY, AUTH_SESSION_KEY, occurrenceTypeLabels, severityOptions } from './constants';
+
 
 // New Component Imports
 import AppHeader from './components/AppHeader';
@@ -25,10 +27,6 @@ declare global {
     html2canvas: any;
   }
 }
-
-const DRAFT_STORAGE_KEY = 'schoolOccurrenceReportFormData';
-const HISTORY_STORAGE_KEY = 'schoolOccurrenceReportHistory';
-const AUTH_SESSION_KEY = 'pioe_auth_session';
 
 const TABS = [
   'Identificação',
@@ -114,6 +112,7 @@ const getDefaultFormData = (): OccurrenceReport & { id?: string } => {
       guardianSignatureDate: '',
       socialWorkerSignatureName: '',
       socialWorkerSignatureDate: '',
+      status: 'Novo',
       modificationHistory: [],
     };
 };
@@ -124,18 +123,12 @@ const getInitialDraftData = (): OccurrenceReport & { id?: string } => {
         try {
             const parsedData = JSON.parse(savedData);
             if (typeof parsedData === 'object' && parsedData !== null && 'schoolUnit' in parsedData) {
-                 if (!parsedData.images) {
-                    parsedData.images = [];
-                 }
-                 if (!('studentPhoto' in parsedData)) {
-                    parsedData.studentPhoto = null;
-                 }
-                 if (!('modificationHistory' in parsedData)) {
-                    parsedData.modificationHistory = [];
-                 }
-                 if (!('guardianEmail' in parsedData)) {
-                    parsedData.guardianEmail = '';
-                 }
+                 if (!parsedData.images) parsedData.images = [];
+                 if (!('studentPhoto' in parsedData)) parsedData.studentPhoto = null;
+                 if (!('modificationHistory' in parsedData)) parsedData.modificationHistory = [];
+                 if (!('guardianEmail' in parsedData)) parsedData.guardianEmail = '';
+                 if (!('status' in parsedData)) parsedData.status = 'Novo';
+
                  // Migration for old drafts
                  if (!('occurrenceDateTime' in parsedData) && parsedData.occurrenceDate && parsedData.occurrenceTime) {
                     parsedData.occurrenceDateTime = `${parsedData.occurrenceDate}T${parsedData.occurrenceTime}`;
@@ -181,6 +174,7 @@ const getInitialHistory = (): SavedReport[] => {
                         guardianEmail: report.guardianEmail || '',
                         occurrenceDateTime: report.occurrenceDateTime || '',
                         occurrenceSeverity: report.occurrenceSeverity || '',
+                        status: report.status || 'Novo',
                     };
                 }) as SavedReport[];
             }
@@ -193,23 +187,6 @@ const getInitialHistory = (): SavedReport[] => {
     // If no history exists in storage, initialize with seed data.
     return seedData;
 };
-
-export const occurrenceTypeLabels: { key: keyof OccurrenceReport['occurrenceTypes']; label: string }[] = [
-    { key: 'physicalAssault', label: 'Agressão física' },
-    { key: 'verbalAssault', label: 'Agressão verbal/ofensas' },
-    { key: 'bullying', label: 'Situação de bullying' },
-    { key: 'propertyDamage', label: 'Danos ao patrimônio' },
-    { key: 'truancy', label: 'Fuga/abandono de sala ou unidade escolar' },
-    { key: 'socialRisk', label: 'Situação de risco/vulnerabilidade social' },
-    { key: 'prohibitedSubstances', label: 'Uso/porte de substâncias proibidas' },
-    { key: 'other', label: 'Outros' },
-];
-
-export const severityOptions = [
-    { value: 'Leve', label: 'Leve' },
-    { value: 'Moderada', label: 'Moderada' },
-    { value: 'Grave', label: 'Grave' },
-];
 
 const validateStudentRegistration = (value: string): string => {
   const maxLength = 20;
@@ -570,6 +547,7 @@ function App() {
           guardianEmail: reportToLoad.guardianEmail || '',
           occurrenceDateTime: reportToLoad.occurrenceDateTime || '',
           occurrenceSeverity: reportToLoad.occurrenceSeverity || '',
+          status: reportToLoad.status || 'Novo',
           fillDate: currentDate,
           reporterDate: currentDate,
         };
@@ -614,6 +592,16 @@ function App() {
     setHistory(importedReports);
     setToast({ message: 'Backup importado com sucesso!', type: 'success' });
   };
+  
+  const handleStatusChange = useCallback((reportId: string, newStatus: ReportStatus) => {
+    setHistory(prevHistory => 
+        prevHistory.map(report => 
+            report.id === reportId ? { ...report, status: newStatus } : report
+        )
+    );
+    setToast({ message: 'Status do relatório atualizado!', type: 'info' });
+  }, []);
+
 
   const reportForExport = isSubmitted ? lastSubmittedReport : (editingReportId ? formData : null);
 
@@ -687,7 +675,7 @@ function App() {
     if (!reportForExport) return;
 
     const headers = [
-      "Unidade Escolar", "Município", "UF", "Data de Preenchimento", "Horário de Preenchimento",
+      "Status", "Unidade Escolar", "Município", "UF", "Data de Preenchimento", "Horário de Preenchimento",
       "Nome do Aluno", "Foto do Aluno", "Data de Nascimento", "Idade", "Ano/Série", "Turno", "Nº de Matrícula",
       "Nome do Responsável", "Parentesco", "Telefone do Responsável", "E-mail do Responsável", "Endereço do Responsável",
       "Data e Hora da Ocorrência", "Local da Ocorrência", "Gravidade da Ocorrência", "Tipos de Ocorrência", "Descrição 'Outros'",
@@ -712,7 +700,7 @@ function App() {
     const modificationDates = reportForExport.modificationHistory.map(mod => new Date(mod.date).toLocaleString('pt-BR')).join('; ');
     
     const row = [
-      reportForExport.schoolUnit, reportForExport.municipality, reportForExport.uf, reportForExport.fillDate, reportForExport.fillTime,
+      reportForExport.status, reportForExport.schoolUnit, reportForExport.municipality, reportForExport.uf, reportForExport.fillDate, reportForExport.fillTime,
       reportForExport.studentName, reportForExport.studentPhoto ? 'Sim' : 'Não', reportForExport.studentDob, reportForExport.studentAge, reportForExport.studentGrade, reportForExport.studentShift, reportForExport.studentRegistration,
       reportForExport.guardianName, reportForExport.guardianRelationship, reportForExport.guardianPhone, reportForExport.guardianEmail, reportForExport.guardianAddress,
       reportForExport.occurrenceDateTime, reportForExport.occurrenceLocation, reportForExport.occurrenceSeverity, checkedTypes, reportForExport.occurrenceOtherDescription,
@@ -987,6 +975,7 @@ function App() {
                 onLoadReport={handleLoadReport} 
                 onDeleteReport={handleDeleteReport}
                 onImportReports={handleImportReports}
+                onStatusChange={handleStatusChange}
                 currentReportId={editingReportId} 
               />
           </aside>

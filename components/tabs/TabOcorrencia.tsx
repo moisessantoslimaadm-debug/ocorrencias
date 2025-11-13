@@ -4,7 +4,8 @@ import SectionHeader from '../SectionHeader';
 import InputField from '../InputField';
 import TextAreaField from '../TextAreaField';
 import SelectField from '../SelectField';
-import { occurrenceTypeLabels, severityOptions } from '../../App';
+// FIX: `occurrenceTypeLabels` and `severityOptions` are exported from `constants.ts`.
+import { occurrenceTypeLabels, severityOptions } from '../../constants';
 
 interface TabOcorrenciaProps {
   formData: OccurrenceReport;

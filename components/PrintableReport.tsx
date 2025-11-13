@@ -52,7 +52,7 @@ const PrintableReport: React.FC<PrintableReportProps> = ({ reportData }) => {
   }
   
   const {
-    schoolUnit, municipality, uf, fillDate, fillTime,
+    schoolUnit, municipality, uf, fillDate, fillTime, status,
     studentName, studentPhoto, studentDob, studentAge, studentGrade, studentShift, studentRegistration,
     guardianName, guardianRelationship, guardianPhone, guardianEmail, guardianAddress,
     occurrenceDateTime, occurrenceLocation, occurrenceSeverity, occurrenceTypes, occurrenceOtherDescription,
@@ -99,7 +99,10 @@ const PrintableReport: React.FC<PrintableReportProps> = ({ reportData }) => {
         </header>
 
         <section className="mb-4 bg-emerald-50 p-3 rounded-lg border border-emerald-200">
-             <h3 className="text-sm font-bold text-emerald-800 mb-2">DADOS GERAIS DO REGISTRO</h3>
+             <div className="flex justify-between items-baseline">
+                <h3 className="text-sm font-bold text-emerald-800 mb-2">DADOS GERAIS DO REGISTRO</h3>
+                <p className="text-sm text-emerald-800">Status: <span className="font-semibold">{status}</span></p>
+            </div>
              <dl className="grid grid-cols-4 gap-x-4">
                 <DataPair label="Unidade Escolar" value={schoolUnit} className="col-span-4" />
                 <DataPair label="Município" value={municipality} className="col-span-2" />
