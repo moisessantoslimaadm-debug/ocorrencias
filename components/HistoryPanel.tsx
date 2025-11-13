@@ -43,7 +43,7 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
     const headers = [
       "ID", "Data Salvo", "Unidade Escolar", "Município", "UF",
       "Nome Aluno", "Data Nasc. Aluno", "Matrícula Aluno",
-      "Data Ocorrência", "Hora Ocorrência", "Local Ocorrência",
+      "E-mail Responsável", "Data Ocorrência", "Hora Ocorrência", "Local Ocorrência",
       "Descrição Detalhada"
     ];
 
@@ -56,6 +56,7 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
       r.studentName,
       r.studentDob,
       r.studentRegistration,
+      r.guardianEmail,
       r.occurrenceDate,
       r.occurrenceTime,
       r.occurrenceLocation,

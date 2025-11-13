@@ -42,7 +42,7 @@ const PrintableReport: React.FC<PrintableReportProps> = ({ reportData }) => {
   const {
     schoolUnit, municipality, uf, fillDate, fillTime,
     studentName, studentPhoto, studentDob, studentAge, studentGrade, studentShift, studentRegistration,
-    guardianName, guardianRelationship, guardianPhone, guardianAddress,
+    guardianName, guardianRelationship, guardianPhone, guardianEmail, guardianAddress,
     occurrenceDate, occurrenceTime, occurrenceLocation, occurrenceTypes, occurrenceOtherDescription,
     detailedDescription, images, peopleInvolved, immediateActions, referralsMade, socialServiceObservation,
     reporterName, reporterDate, guardianSignatureName, guardianSignatureDate, socialWorkerSignatureName, socialWorkerSignatureDate,
@@ -98,6 +98,7 @@ const PrintableReport: React.FC<PrintableReportProps> = ({ reportData }) => {
                 <DataField label="Nome completo" value={guardianName} />
                 <DataField label="Parentesco" value={guardianRelationship} />
                 <DataField label="Contato telefônico" value={guardianPhone} />
+                <DataField label="E-mail de contato" value={guardianEmail} />
                 <DataField label="Endereço completo" value={guardianAddress} className="col-span-2" />
             </div>
         </Section>

@@ -7,6 +7,7 @@ interface InputFieldProps {
   type: string;
   value: string;
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onBlur?: (e: React.FocusEvent<HTMLInputElement>) => void;
   placeholder?: string;
   className?: string;
   readOnly?: boolean;
@@ -36,7 +37,7 @@ const formatPhoneNumber = (value: string): string => {
 };
 
 
-const InputField: React.FC<InputFieldProps> = ({ id, name, label, type, value, onChange, placeholder, className = '', readOnly = false, error, description, ariaLabel }) => {
+const InputField: React.FC<InputFieldProps> = ({ id, name, label, type, value, onChange, onBlur, placeholder, className = '', readOnly = false, error, description, ariaLabel }) => {
   const validationClasses = error
     ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
     : 'border-gray-300 focus:ring-emerald-500 focus:border-emerald-500';
@@ -72,6 +73,7 @@ const InputField: React.FC<InputFieldProps> = ({ id, name, label, type, value, o
         name={name}
         value={value}
         onChange={handleInputChange}
+        onBlur={onBlur}
         placeholder={placeholder || (type === 'date' ? 'AAAA-MM-DD' : undefined)}
         readOnly={readOnly}
         className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 transition ${readOnly ? 'bg-gray-100 cursor-not-allowed' : ''} ${validationClasses}`}

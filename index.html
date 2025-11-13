@@ -35,22 +35,46 @@
       /* Print-specific styles */
       @media print {
         body {
-          background-color: #fff;
+          margin: 0;
+          padding: 0;
+          background-color: #ffffff !important; /* Ensure white background */
         }
+
         .non-printable {
           display: none !important;
         }
+
         .printable-area {
           display: block !important;
-          position: absolute;
-          left: 0;
-          top: 0;
-          width: 100%;
+          /* Remove absolute positioning to allow natural document flow */
+          position: static !important;
+          width: auto !important;
+          margin: 0 !important;
+          box-shadow: none !important;
+          border: none !important;
         }
-        /* Ensure Tailwind's utility classes work as expected in print */
+
+        /* Use @page rule for standard margins, providing a better print layout */
+        @page {
+          size: A4;
+          margin: 2cm;
+        }
+        
+        /* Universal print settings for clean output and to enforce Tailwind colors */
         * {
           -webkit-print-color-adjust: exact !important;
           color-adjust: exact !important;
+          box-shadow: none !important;
+          text-shadow: none !important;
+        }
+
+        /* The components use 'break-inside-avoid', this rule is a good general practice */
+        section, .break-inside-avoid {
+          page-break-inside: avoid;
+        }
+        
+        h1, h2, h3 {
+            page-break-after: avoid;
         }
       }
     </style>

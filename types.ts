@@ -29,6 +29,7 @@ export interface OccurrenceReport {
   guardianName: string;
   guardianRelationship: string;
   guardianPhone: string;
+  guardianEmail: string;
   guardianAddress: string;
 
   occurrenceDate: string;

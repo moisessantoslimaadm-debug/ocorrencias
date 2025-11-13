@@ -60,6 +60,7 @@ const getDefaultFormData = (): OccurrenceReport & { id?: string } => {
       guardianName: '',
       guardianRelationship: '',
       guardianPhone: '',
+      guardianEmail: '',
       guardianAddress: '',
       occurrenceDate: '',
       occurrenceTime: '',
@@ -106,6 +107,9 @@ const getInitialDraftData = (): OccurrenceReport & { id?: string } => {
                  if (!('modificationHistory' in parsedData)) {
                     parsedData.modificationHistory = [];
                  }
+                 if (!('guardianEmail' in parsedData)) {
+                    parsedData.guardianEmail = '';
+                 }
                  return parsedData as OccurrenceReport & { id?: string };
             }
         } catch (error) {
@@ -127,6 +131,7 @@ const getInitialHistory = (): SavedReport[] => {
                     images: report.images || [],
                     studentPhoto: report.studentPhoto || null,
                     modificationHistory: report.modificationHistory || [],
+                    guardianEmail: report.guardianEmail || '',
                 })) as SavedReport[];
             }
         } catch (error) {
@@ -224,12 +229,30 @@ function App() {
         newErrors.occurrenceOtherDescription = "Especifique o tipo de ocorrência 'Outros'.";
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (formData.guardianEmail && !emailRegex.test(formData.guardianEmail)) {
+        newErrors.guardianEmail = 'Por favor, insira um endereço de e-mail válido.';
+    }
+
     const registrationError = validateStudentRegistration(formData.studentRegistration);
     if (registrationError) {
         newErrors.studentRegistration = registrationError;
     }
 
     return newErrors;
+  };
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    if (name === 'guardianEmail') {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (value && !emailRegex.test(value)) {
+        setErrors(prev => ({ ...prev, guardianEmail: 'Por favor, insira um endereço de e-mail válido.' }));
+      } else {
+        // Limpa o erro se o campo for válido ou estiver vazio
+        setErrors(prev => ({ ...prev, guardianEmail: undefined }));
+      }
+    }
   };
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -360,6 +383,7 @@ function App() {
           images: reportToLoad.images || [],
           studentPhoto: reportToLoad.studentPhoto || null,
           modificationHistory: reportToLoad.modificationHistory || [],
+          guardianEmail: reportToLoad.guardianEmail || '',
           fillDate: currentDate,
           reporterDate: currentDate,
         });
@@ -564,6 +588,7 @@ function App() {
                     <InputField id="guardianName" name="guardianName" label="Nome completo" type="text" value={formData.guardianName} onChange={handleChange} />
                     <InputField id="guardianRelationship" name="guardianRelationship" label="Parentesco" type="text" value={formData.guardianRelationship} onChange={handleChange} />
                     <InputField id="guardianPhone" name="guardianPhone" label="Contato telefônico" type="tel" value={formData.guardianPhone} onChange={handleChange} placeholder="(00) 00000-0000" error={errors.guardianPhone} />
+                    <InputField id="guardianEmail" name="guardianEmail" label="E-mail de contato" type="email" value={formData.guardianEmail} onChange={handleChange} onBlur={handleBlur} placeholder="exemplo@email.com" error={errors.guardianEmail} />
                     <InputField id="guardianAddress" name="guardianAddress" label="Endereço completo" type="text" value={formData.guardianAddress} onChange={handleChange} className="md:col-span-2" />
                   </div>
                   
