@@ -3,7 +3,7 @@ import type { SavedReport, ReportStatus, TrendInsight } from '../types';
 import OccurrenceChart from './OccurrenceChart';
 import SeverityDonutChart from './SeverityDonutChart';
 import Accordion from './Accordion';
-import { RECENT_SEARCHES_KEY, severityOptions, statusOptions } from '../constants';
+import { API_KEY_STORAGE_KEY, RECENT_SEARCHES_KEY, severityOptions, statusOptions } from '../constants';
 import MonthlyChart from './MonthlyChart';
 import { GoogleGenAI, Type } from "@google/genai";
 import TrendAnalysisModal from './TrendAnalysisModal';
@@ -17,6 +17,7 @@ interface HistoryPanelProps {
   onStatusChange: (id: string, newStatus: ReportStatus) => void;
   currentReportId?: string;
   onSetToast: (toast: { message: string; type: 'success' | 'info' | 'error' } | null) => void;
+  onApiKeyCheck: () => boolean;
 }
 
 const occurrenceTypeLabelsMap: Record<string, string> = {
@@ -45,7 +46,7 @@ const isReportIncomplete = (report: SavedReport): boolean => {
     return !report.detailedDescription || !report.occurrenceLocation || !report.reporterName;
 };
 
-const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDeleteReport, onImportReports, onStatusChange, currentReportId, onSetToast }) => {
+const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDeleteReport, onImportReports, onStatusChange, currentReportId, onSetToast, onApiKeyCheck }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -89,6 +90,8 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
   };
   
   const handleSearchSubmit = async (term: string) => {
+    if (!onApiKeyCheck()) return;
+
     const trimmedTerm = term.trim();
     if (!trimmedTerm) {
         setAiFilteredIds(null);
@@ -103,7 +106,9 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
     setAiFilteredIds(null);
 
     try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+        const apiKey = localStorage.getItem(API_KEY_STORAGE_KEY);
+        if (!apiKey) throw new Error("API key not found");
+        const ai = new GoogleGenAI({ apiKey });
         
         const simplifiedReports = reports.map(r => ({
             id: r.id,
@@ -159,14 +164,20 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
 
     } catch (error) {
         console.error("Erro na busca com IA:", error);
-        const errorMessage = "A busca com IA falhou. Tente novamente.";
+        let errorMessage = "A busca com IA falhou. Tente novamente.";
+        if (error instanceof Error && error.message.includes('API key not valid')) {
+            errorMessage = "A chave de API fornecida não é válida.";
+        }
         onSetToast({ message: errorMessage, type: 'error' });
+        setAiFilteredIds([]);
     } finally {
         setIsAiSearching(false);
     }
   };
 
   const handleAnalyzeTrends = async () => {
+    if (!onApiKeyCheck()) return;
+
     if (reports.length === 0) {
         onSetToast({ message: 'Não há relatórios suficientes para analisar tendências.', type: 'info' });
         return;
@@ -178,7 +189,10 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
     setIsTrendModalOpen(true);
 
     try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+        const apiKey = localStorage.getItem(API_KEY_STORAGE_KEY);
+        if (!apiKey) throw new Error("API key not found");
+        const ai = new GoogleGenAI({ apiKey });
+
         const simplifiedReports = reports.map(r => ({
             date: r.occurrenceDateTime,
             grade: r.studentGrade,
@@ -236,7 +250,11 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
 
     } catch (error) {
         console.error("Erro na análise de tendências com IA:", error);
-        setTrendAnalysisError("Não foi possível obter a análise da IA. Verifique sua conexão e tente novamente.");
+        let errorMessage = "Não foi possível obter a análise da IA. Verifique sua conexão e tente novamente.";
+        if (error instanceof Error && error.message.includes('API key not valid')) {
+            errorMessage = "A chave de API fornecida não é válida.";
+        }
+        setTrendAnalysisError(errorMessage);
     } finally {
         setIsAnalyzingTrends(false);
     }

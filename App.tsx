@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { GoogleGenAI, Type } from "@google/genai";
 import type { OccurrenceReport, SavedReport, ReportImage, GeminiAnalysisResult, Modification, FormErrors, ReportStatus } from './types';
-import { DRAFT_STORAGE_KEY, HISTORY_STORAGE_KEY, AUTH_SESSION_KEY, occurrenceTypeLabels, severityOptions } from './constants';
+import { DRAFT_STORAGE_KEY, HISTORY_STORAGE_KEY, AUTH_SESSION_KEY, API_KEY_STORAGE_KEY, occurrenceTypeLabels, severityOptions } from './constants';
 
 
 // New Component Imports
@@ -11,12 +11,14 @@ import TabOcorrencia from './components/tabs/TabOcorrencia';
 import TabEvidencias from './components/tabs/TabEvidencias';
 import TabFinalizacao from './components/tabs/TabFinalizacao';
 import LoginScreen from './components/LoginScreen'; // Import LoginScreen
+import GoodbyeScreen from './components/GoodbyeScreen'; // Import GoodbyeScreen
 
 import PrintableReport from './components/PrintableReport';
 import HistoryPanel from './components/HistoryPanel';
 import Toast from './components/Toast';
 import ConfirmationModal from './components/ConfirmationModal';
 import GeminiAnalysisModal from './components/GeminiAnalysisModal';
+import ApiKeyModal from './components/ApiKeyModal';
 import { seedData } from './data/seedData';
 import Dropdown from './components/Dropdown';
 
@@ -39,14 +41,28 @@ const validateAddress = (address: string): string => {
   const trimmedAddress = address.trim();
   if (!trimmedAddress) return ''; // Not a required field, so no error if empty
 
-  // Basic checks for a reasonably complete address.
-  // We check for minimum length, at least one number, and a comma.
   const hasNumber = /\d/.test(trimmedAddress);
   const hasComma = /,/.test(trimmedAddress);
-  const wordCount = trimmedAddress.split(/\s+/).length;
+  const hasZipCode = /\d{5}-?\d{3}/.test(trimmedAddress);
+  const hasUF = /(,|-|\s)\b[A-Z]{2}\b/i.test(trimmedAddress);
 
-  if (trimmedAddress.length > 0 && (trimmedAddress.length < 10 || !hasNumber || !hasComma || wordCount < 3)) {
-    return 'Endereço inválido. Forneça rua, número, bairro e cidade. Ex: Rua das Flores, 123, Centro.';
+
+  if (trimmedAddress.length > 0) {
+    if (trimmedAddress.length < 15) {
+      return 'Endereço muito curto. Forneça mais detalhes.';
+    }
+    if (!hasNumber) {
+      return 'Endereço inválido. O número da residência está faltando.';
+    }
+    if (!hasComma) {
+      return 'Endereço inválido. Use vírgulas para separar as partes (rua, bairro, etc.).';
+    }
+    if (!hasZipCode) {
+        return 'Endereço inválido. O CEP (ex: 12345-678) está faltando.';
+    }
+    if (!hasUF) {
+        return 'Endereço inválido. A sigla do estado (UF) está faltando.';
+    }
   }
 
   return '';
@@ -227,6 +243,7 @@ function App() {
     // Check session storage for auth flag
     return sessionStorage.getItem(AUTH_SESSION_KEY) === 'true';
   });
+  const [showGoodbyeScreen, setShowGoodbyeScreen] = useState(false);
 
   const [formData, setFormData] = useState<OccurrenceReport & { id?: string }>(getInitialDraftData);
   const [history, setHistory] = useState<SavedReport[]>(getInitialHistory);
@@ -247,19 +264,34 @@ function App() {
 
 
   // Gemini AI State
+  const [apiKey, setApiKey] = useState<string | null>(null);
+  const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
   const [isGeminiModalOpen, setIsGeminiModalOpen] = useState(false);
   const [geminiResult, setGeminiResult] = useState<GeminiAnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [geminiError, setGeminiError] = useState<string | null>(null);
 
+  useEffect(() => {
+    const savedKey = localStorage.getItem(API_KEY_STORAGE_KEY);
+    if (savedKey) {
+      setApiKey(savedKey);
+    }
+  }, []);
+
   const handleLogin = () => {
     sessionStorage.setItem(AUTH_SESSION_KEY, 'true');
     setIsAuthenticated(true);
+    setShowGoodbyeScreen(false);
   };
 
   const handleLogout = () => {
     sessionStorage.removeItem(AUTH_SESSION_KEY);
     setIsAuthenticated(false);
+    setShowGoodbyeScreen(true);
+  };
+  
+  const handleReturnToLogin = () => {
+    setShowGoodbyeScreen(false);
   };
 
   // Auto-save draft every 30 seconds
@@ -847,6 +879,10 @@ function App() {
 
   const handleAnalyzeWithAI = async () => {
     if (!formData.detailedDescription) return;
+    if (!apiKey) {
+      setIsApiKeyModalOpen(true);
+      return;
+    }
 
     setIsAnalyzing(true);
     setGeminiError(null);
@@ -854,7 +890,7 @@ function App() {
     setIsGeminiModalOpen(true);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+      const ai = new GoogleGenAI({ apiKey });
       
       const checkedTypes = occurrenceTypeLabels
         .filter(({ key }) => formData.occurrenceTypes[key])
@@ -910,17 +946,36 @@ function App() {
       console.error("Erro na API do Gemini:", error);
       let errorMessage = "Não foi possível obter a análise da IA. Verifique sua conexão e tente novamente.";
       if (error instanceof Error) {
-          if (error.message.includes('API key not valid')) {
-              errorMessage = "A chave de API configurada não é válida. Verifique a configuração do ambiente.";
-          } else if (error.message.includes('fetch')) {
-              errorMessage = "Erro de rede ao contatar a IA. Verifique sua conexão com a internet.";
-          } else if (error.message.includes('Formato de resposta da IA inválido')) {
-              errorMessage = "A IA retornou uma resposta em um formato inesperado. Por favor, tente novamente.";
-          }
+        if (error.message.includes('API key not valid')) {
+            errorMessage = "A chave de API fornecida não é válida. Verifique a chave e tente novamente.";
+        } else if (error.message.includes('fetch')) {
+            errorMessage = "Erro de rede ao contatar a IA. Verifique sua conexão com a internet.";
+        } else if (error.message.includes('Formato de resposta da IA inválido')) {
+            errorMessage = "A IA retornou uma resposta em um formato inesperado. Por favor, tente novamente.";
+        }
       }
       setGeminiError(errorMessage);
     } finally {
       setIsAnalyzing(false);
+    }
+  };
+
+  const handleSaveApiKey = (newKey: string) => {
+    const trimmedKey = newKey.trim();
+    if (trimmedKey) {
+        setApiKey(trimmedKey);
+        localStorage.setItem(API_KEY_STORAGE_KEY, trimmedKey);
+        setIsApiKeyModalOpen(false);
+        setToast({ message: 'Chave de API salva com sucesso!', type: 'success' });
+        // After saving the key, retry the analysis if the user was trying to.
+        if (isGeminiModalOpen) {
+          setIsGeminiModalOpen(false); // Close the gemini modal to restart the process
+          setTimeout(() => handleAnalyzeWithAI(), 100);
+        }
+    } else {
+        setApiKey(null);
+        localStorage.removeItem(API_KEY_STORAGE_KEY);
+        setToast({ message: 'Chave de API removida.', type: 'info' });
     }
   };
 
@@ -955,6 +1010,10 @@ function App() {
     }
   };
 
+  if (showGoodbyeScreen) {
+    return <GoodbyeScreen onReturnToLogin={handleReturnToLogin} />;
+  }
+
   if (!isAuthenticated) {
     return <LoginScreen onLogin={handleLogin} />;
   }
@@ -966,7 +1025,7 @@ function App() {
           
           <main className="flex-grow lg:order-1">
             <div className="bg-white rounded-lg shadow-2xl overflow-hidden">
-              <AppHeader onLogout={handleLogout} />
+              <AppHeader onLogout={handleLogout} onApiKeyClick={() => setIsApiKeyModalOpen(true)} />
 
               <div className="p-6 md:p-8">
                 {isSubmitted && (
@@ -1132,6 +1191,7 @@ function App() {
                 onStatusChange={handleStatusChange}
                 currentReportId={editingReportId}
                 onSetToast={setToast}
+                onApiKeyCheck={() => { if (!apiKey) setIsApiKeyModalOpen(true); return !!apiKey; }}
               />
           </aside>
 
@@ -1186,6 +1246,12 @@ function App() {
         onApplySuggestion={handleApplySuggestion}
         isLoading={isAnalyzing}
         error={geminiError}
+      />
+      <ApiKeyModal
+        isOpen={isApiKeyModalOpen}
+        onClose={() => setIsApiKeyModalOpen(false)}
+        onSave={handleSaveApiKey}
+        currentApiKey={apiKey}
       />
       <style>{`
         @keyframes fade-in {
