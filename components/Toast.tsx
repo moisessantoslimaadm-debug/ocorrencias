@@ -1,21 +1,36 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 
 interface ToastProps {
   message: string;
-  type: 'success' | 'info';
+  type: 'success' | 'info' | 'error';
   onClose: () => void;
 }
 
 const Toast: React.FC<ToastProps> = ({ message, type, onClose }) => {
+  const [isExiting, setIsExiting] = useState(false);
+
   useEffect(() => {
-    const timer = setTimeout(() => {
+    // Timer to start the exit animation before the component is unmounted.
+    const exitTimer = setTimeout(() => {
+      setIsExiting(true);
+    }, 4500); // 5000ms total visibility - 500ms for animation
+
+    // Timer to call onClose, which will unmount the component.
+    const closeTimer = setTimeout(() => {
       onClose();
-    }, 5000); // Auto-close after 5 seconds
+    }, 5000);
 
     return () => {
-      clearTimeout(timer);
+      clearTimeout(exitTimer);
+      clearTimeout(closeTimer);
     };
   }, [onClose]);
+
+  // Manually trigger the exit animation and unmount
+  const handleClose = () => {
+    setIsExiting(true);
+    setTimeout(onClose, 400); // Allow time for exit animation
+  };
 
   const typeStyles = {
     success: {
@@ -36,14 +51,25 @@ const Toast: React.FC<ToastProps> = ({ message, type, onClose }) => {
       ),
       focusRing: 'focus:ring-offset-blue-500',
     },
+    error: {
+      bgColor: 'bg-red-500',
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      ),
+      focusRing: 'focus:ring-offset-red-500',
+    },
   };
 
   const currentStyle = typeStyles[type];
+  const animationClass = isExiting ? 'animate-fade-out-right' : 'animate-fade-in-right';
+
 
   return (
     <div
       role="alert"
-      className={`fixed top-5 right-5 z-50 flex items-center p-4 rounded-lg shadow-lg text-white animate-fade-in-right ${currentStyle.bgColor}`}
+      className={`fixed top-5 right-5 z-50 flex items-center p-4 rounded-lg shadow-lg text-white ${animationClass} ${currentStyle.bgColor}`}
     >
       <div className="flex-shrink-0">
         {currentStyle.icon}
@@ -54,7 +80,7 @@ const Toast: React.FC<ToastProps> = ({ message, type, onClose }) => {
       <button
         type="button"
         className={`ml-4 -mr-1.5 -my-1.5 bg-white bg-opacity-20 rounded-full p-1.5 inline-flex items-center justify-center text-white hover:bg-opacity-30 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-white ${currentStyle.focusRing}`}
-        onClick={onClose}
+        onClick={handleClose}
         aria-label="Fechar"
       >
         <span className="sr-only">Fechar</span>
@@ -75,6 +101,19 @@ const Toast: React.FC<ToastProps> = ({ message, type, onClose }) => {
         }
         .animate-fade-in-right {
           animation: fade-in-right 0.5s ease-out forwards;
+        }
+        @keyframes fade-out-right {
+          from {
+            opacity: 1;
+            transform: translateX(0);
+          }
+          to {
+            opacity: 0;
+            transform: translateX(100%);
+          }
+        }
+        .animate-fade-out-right {
+          animation: fade-out-right 0.5s ease-in forwards;
         }
       `}</style>
     </div>

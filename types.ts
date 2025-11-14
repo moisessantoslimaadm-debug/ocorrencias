@@ -79,4 +79,9 @@ export interface GeminiAnalysisResult {
   severity: 'Leve' | 'Moderada' | 'Grave' | string;
 }
 
+export interface TrendInsight {
+  title: string;
+  suggestion: string;
+}
+
 export type FormErrors = Partial<Record<keyof OccurrenceReport | 'occurrenceTypes' | 'guardianPhone', string>>;

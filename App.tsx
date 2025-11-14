@@ -35,10 +35,29 @@ const TABS = [
   'Finalização'
 ];
 
+const validateAddress = (address: string): string => {
+  const trimmedAddress = address.trim();
+  if (!trimmedAddress) return ''; // Not a required field, so no error if empty
+
+  // Basic checks for a reasonably complete address.
+  // We check for minimum length, at least one number, and a comma.
+  const hasNumber = /\d/.test(trimmedAddress);
+  const hasComma = /,/.test(trimmedAddress);
+  const wordCount = trimmedAddress.split(/\s+/).length;
+
+  if (trimmedAddress.length > 0 && (trimmedAddress.length < 10 || !hasNumber || !hasComma || wordCount < 3)) {
+    return 'Endereço inválido. Forneça rua, número, bairro e cidade. Ex: Rua das Flores, 123, Centro.';
+  }
+
+  return '';
+};
+
+
 export const FIELD_TO_TAB_MAP: { [key in keyof FormErrors]?: number } = {
   // Tab 0: Identificação
   schoolUnit: 0, municipality: 0, uf: 0,
   studentName: 0, studentDob: 0, studentRegistration: 0,
+  guardianAddress: 0,
   guardianPhone: 0, guardianEmail: 0,
   // Tab 1: Ocorrência
   occurrenceDateTime: 1, occurrenceLocation: 1, occurrenceSeverity: 1,
@@ -214,7 +233,7 @@ function App() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' } | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [reportToDelete, setReportToDelete] = useState<SavedReport | null>(null);
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
@@ -379,6 +398,11 @@ function App() {
     checkMaxLength('guardianRelationship', 50, 'Parentesco');
     checkMaxLength('guardianAddress', 200, 'Endereço');
     
+    const addressError = validateAddress(formData.guardianAddress);
+    if (addressError) {
+        newErrors.guardianAddress = addressError;
+    }
+    
     if (formData.guardianPhone && formData.guardianPhone.replace(/\D/g, '').length > 0) {
         const phoneDigits = formData.guardianPhone.replace(/\D/g, '');
         if (![10, 11].includes(phoneDigits.length)) {
@@ -444,6 +468,14 @@ function App() {
             setErrors(prev => ({ ...prev, guardianPhone: 'Telefone inválido. Deve conter DDD + 8 ou 9 dígitos.' }));
         } else {
             setErrors(prev => ({ ...prev, guardianPhone: undefined }));
+        }
+    }
+    if (name === 'guardianAddress') {
+        const addressError = validateAddress(value);
+        if (addressError) {
+            setErrors(prev => ({ ...prev, guardianAddress: addressError }));
+        } else {
+            setErrors(prev => ({ ...prev, guardianAddress: undefined }));
         }
     }
   };
@@ -1105,7 +1137,8 @@ function App() {
                 onDeleteReport={handleDeleteReport}
                 onImportReports={handleImportReports}
                 onStatusChange={handleStatusChange}
-                currentReportId={editingReportId} 
+                currentReportId={editingReportId}
+                onSetToast={setToast}
               />
           </aside>
 
@@ -1139,8 +1172,9 @@ function App() {
         confirmText="Sim, Limpar"
         variant="danger"
       >
-        Você tem certeza que deseja limpar todos os campos do formulário? 
-        O rascunho salvo será perdido.
+        Você tem certeza que deseja limpar o formulário e descartar todas as informações inseridas?
+        <br />
+        Esta ação não pode ser desfeita.
       </ConfirmationModal>
       <ConfirmationModal
         isOpen={isCancelEditModalOpen}

@@ -1,10 +1,12 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import type { SavedReport, ReportStatus } from '../types';
+import type { SavedReport, ReportStatus, TrendInsight } from '../types';
 import OccurrenceChart from './OccurrenceChart';
 import SeverityDonutChart from './SeverityDonutChart';
 import Accordion from './Accordion';
 import { RECENT_SEARCHES_KEY, severityOptions, statusOptions } from '../constants';
 import MonthlyChart from './MonthlyChart';
+import { GoogleGenAI, Type } from "@google/genai";
+import TrendAnalysisModal from './TrendAnalysisModal';
 
 
 interface HistoryPanelProps {
@@ -14,6 +16,7 @@ interface HistoryPanelProps {
   onImportReports: (importedReports: SavedReport[]) => void;
   onStatusChange: (id: string, newStatus: ReportStatus) => void;
   currentReportId?: string;
+  onSetToast: (toast: { message: string; type: 'success' | 'info' | 'error' } | null) => void;
 }
 
 const occurrenceTypeLabelsMap: Record<string, string> = {
@@ -42,7 +45,7 @@ const isReportIncomplete = (report: SavedReport): boolean => {
     return !report.detailedDescription || !report.occurrenceLocation || !report.reporterName;
 };
 
-const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDeleteReport, onImportReports, onStatusChange, currentReportId }) => {
+const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDeleteReport, onImportReports, onStatusChange, currentReportId, onSetToast }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -50,6 +53,17 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
   const [statusFilter, setStatusFilter] = useState('');
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [justLoadedReportId, setJustLoadedReportId] = useState<string | null>(null);
+
+  // AI Search State
+  const [isAiSearching, setIsAiSearching] = useState(false);
+  const [aiFilteredIds, setAiFilteredIds] = useState<string[] | null>(null);
+
+  // AI Trend Analysis State
+  const [isTrendModalOpen, setIsTrendModalOpen] = useState(false);
+  const [isAnalyzingTrends, setIsAnalyzingTrends] = useState(false);
+  const [trendAnalysisResult, setTrendAnalysisResult] = useState<TrendInsight[] | null>(null);
+  const [trendAnalysisError, setTrendAnalysisError] = useState<string | null>(null);
+
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -66,16 +80,166 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
   }, []);
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
+    const value = e.target.value;
+    setSearchTerm(value);
+    // If user clears the input, also clear AI filters
+    if (value === '') {
+        setAiFilteredIds(null);
+    }
   };
   
-  const handleSearchSubmit = (term: string) => {
+  const handleSearchSubmit = async (term: string) => {
     const trimmedTerm = term.trim();
-    if (!trimmedTerm) return;
+    if (!trimmedTerm) {
+        setAiFilteredIds(null);
+        return;
+    }
 
     const newSearches = [trimmedTerm, ...recentSearches.filter(s => s !== trimmedTerm)].slice(0, 5);
     setRecentSearches(newSearches);
     localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(newSearches));
+    
+    setIsAiSearching(true);
+    setAiFilteredIds(null);
+
+    try {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+        
+        const simplifiedReports = reports.map(r => ({
+            id: r.id,
+            studentName: r.studentName,
+            studentGrade: r.studentGrade,
+            date: r.occurrenceDateTime,
+            description: r.detailedDescription,
+            types: Object.entries(r.occurrenceTypes)
+                         .filter(([, checked]) => checked)
+                         .map(([key]) => occurrenceTypeLabelsMap[key] || key),
+            severity: r.occurrenceSeverity,
+            status: r.status,
+        }));
+
+        const prompt = `
+            Você é um assistente de busca inteligente para um sistema de relatórios de ocorrências escolares.
+            Analise a consulta do usuário e a lista de relatórios JSON fornecida.
+            Sua tarefa é retornar APENAS um array de strings contendo os IDs dos relatórios que correspondem precisamente à consulta.
+            Interprete a linguagem natural do usuário, incluindo datas relativas (ex: "última semana"), tipos de ocorrência, gravidade, nomes, turmas, etc.
+            Se nenhum relatório corresponder, retorne uma lista vazia.
+
+            Consulta do usuário: "${trimmedTerm}"
+
+            Data e hora atual para referência (ISO 8601): ${new Date().toISOString()}
+
+            Lista de Relatórios:
+            ${JSON.stringify(simplifiedReports)}
+        `;
+
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        matchingReportIds: {
+                            type: Type.ARRAY,
+                            items: { type: Type.STRING },
+                            description: "Uma lista contendo apenas os IDs dos relatórios que correspondem à consulta.",
+                        },
+                    },
+                    required: ['matchingReportIds'],
+                },
+            },
+        });
+        
+        const text = response.text.trim();
+        const result = JSON.parse(text) as { matchingReportIds?: string[] };
+        
+        setAiFilteredIds(result.matchingReportIds || []);
+
+    } catch (error) {
+        console.error("Erro na busca com IA:", error);
+        const errorMessage = "A busca com IA falhou. Tente novamente.";
+        onSetToast({ message: errorMessage, type: 'error' });
+    } finally {
+        setIsAiSearching(false);
+    }
+  };
+
+  const handleAnalyzeTrends = async () => {
+    if (reports.length === 0) {
+        onSetToast({ message: 'Não há relatórios suficientes para analisar tendências.', type: 'info' });
+        return;
+    }
+
+    setIsAnalyzingTrends(true);
+    setTrendAnalysisResult(null);
+    setTrendAnalysisError(null);
+    setIsTrendModalOpen(true);
+
+    try {
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+        const simplifiedReports = reports.map(r => ({
+            date: r.occurrenceDateTime,
+            grade: r.studentGrade,
+            location: r.occurrenceLocation,
+            severity: r.occurrenceSeverity,
+            types: Object.entries(r.occurrenceTypes)
+                .filter(([, checked]) => checked)
+                .map(([key]) => occurrenceTypeLabelsMap[key] || key),
+        }));
+        
+        const prompt = `
+            Você é um analista de dados educacionais e psicopedagogo experiente. Sua tarefa é analisar o seguinte conjunto de relatórios de ocorrências escolares para identificar tendências, padrões, correlações e anomalias.
+            Os dados fornecidos são um JSON de relatórios simplificados. A data atual é ${new Date().toISOString()}.
+
+            Identifique de 3 a 5 insights acionáveis. Concentre-se em:
+            - Aumentos ou diminuições em tipos específicos de ocorrência.
+            - Padrões relacionados a dias da semana, horários ou locais.
+            - Correlações entre tipos de ocorrência e séries/turmas.
+            - Quaisquer outras tendências significativas que possam ajudar a gestão escolar a tomar medidas proativas.
+
+            Responda com um objeto JSON. O objeto deve ter uma chave 'insights' que é um array de objetos. Cada objeto no array deve ter duas chaves: 'title' (um título curto e impactante para o insight) e 'suggestion' (uma descrição detalhada do insight e uma sugestão de ação clara e prática).
+
+            Dados dos Relatórios:
+            ${JSON.stringify(simplifiedReports)}
+        `;
+
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        insights: {
+                            type: Type.ARRAY,
+                            items: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    title: { type: Type.STRING },
+                                    suggestion: { type: Type.STRING },
+                                },
+                                required: ['title', 'suggestion'],
+                            },
+                        },
+                    },
+                    required: ['insights'],
+                },
+            },
+        });
+
+        const text = response.text.trim();
+        const result = JSON.parse(text) as { insights: TrendInsight[] };
+        setTrendAnalysisResult(result.insights);
+
+    } catch (error) {
+        console.error("Erro na análise de tendências com IA:", error);
+        setTrendAnalysisError("Não foi possível obter a análise da IA. Verifique sua conexão e tente novamente.");
+    } finally {
+        setIsAnalyzingTrends(false);
+    }
   };
   
   const handleRecentSearchClick = (term: string) => {
@@ -89,23 +253,29 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
     setEndDate('');
     setSeverityFilter('');
     setStatusFilter('');
+    setAiFilteredIds(null);
   };
 
   const filteredReports = useMemo(() => {
-    return reports
+    const baseReports = aiFilteredIds !== null
+      ? reports.filter(r => aiFilteredIds.includes(r.id))
+      : reports;
+
+    return baseReports
       .filter(report => {
         const occurrenceDatePart = report.occurrenceDateTime ? report.occurrenceDateTime.split('T')[0] : '';
         if (startDate && occurrenceDatePart && occurrenceDatePart < startDate) return false;
         if (endDate && occurrenceDatePart && occurrenceDatePart > endDate) return false;
         if (severityFilter && report.occurrenceSeverity !== severityFilter) return false;
         if (statusFilter && report.status !== statusFilter) return false;
-        if (searchTerm) {
+
+        if (searchTerm && aiFilteredIds === null) {
           const lowerCaseSearch = searchTerm.toLowerCase();
           return report.studentName?.toLowerCase().includes(lowerCaseSearch);
         }
         return true;
-      })
-  }, [reports, startDate, endDate, searchTerm, severityFilter, statusFilter]);
+      });
+  }, [reports, startDate, endDate, searchTerm, severityFilter, statusFilter, aiFilteredIds]);
   
   const handleLoadAndHighlight = (id: string) => {
     onLoadReport(id);
@@ -241,9 +411,10 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
     }
   }
   
-  const hasActiveFilters = searchTerm || startDate || endDate || severityFilter || statusFilter;
+  const hasActiveFilters = searchTerm || startDate || endDate || severityFilter || statusFilter || aiFilteredIds !== null;
 
   return (
+    <>
     <aside className="non-printable w-full bg-gray-50 p-4 rounded-lg shadow-inner self-start sticky top-8 space-y-4">
       <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept=".json" className="hidden" aria-hidden="true" />
       
@@ -254,6 +425,18 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
 
       <Accordion title="Estatísticas" defaultOpen>
         <div className="space-y-4">
+            <button
+                onClick={handleAnalyzeTrends}
+                disabled={isAnalyzingTrends}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-white bg-emerald-600 rounded-md hover:bg-emerald-700 disabled:bg-emerald-400 disabled:cursor-not-allowed transition-colors"
+            >
+                {isAnalyzingTrends ? (
+                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                ) : (
+                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9.622 3.203a.75.75 0 01.756 0l1.25 1.25a.75.75 0 010 1.06l-1.25 1.25a.75.75 0 01-1.06 0l-1.25-1.25a.75.75 0 010-1.06l1.25-1.25zM12.5 6.5a.75.75 0 00-1.06 0l-1.25 1.25a.75.75 0 000 1.06l1.25 1.25a.75.75 0 001.06 0l1.25-1.25a.75.75 0 000-1.06L12.5 6.5zM5.378 8.203a.75.75 0 01.756 0l1.25 1.25a.75.75 0 010 1.06l-1.25 1.25a.75.75 0 01-1.06 0L4.122 10.51a.75.75 0 010-1.06l1.25-1.25zM10 11.25a.75.75 0 00-1.06 0l-1.25 1.25a.75.75 0 000 1.06l1.25 1.25a.75.75 0 001.06 0l1.25-1.25a.75.75 0 000-1.06L10 11.25z" clipRule="evenodd" /></svg>
+                )}
+                <span>{isAnalyzingTrends ? 'Analisando...' : 'Analisar Tendências com IA'}</span>
+            </button>
             <MonthlyChart reports={reports} />
             <OccurrenceChart reports={reports} />
             <SeverityDonutChart reports={reports} />
@@ -263,17 +446,37 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
       <Accordion title="Filtrar Relatórios">
           <div className="space-y-3">
             <div>
-              <label htmlFor="search-report" className="text-sm font-medium text-gray-600 mb-1 block">Pesquisar por aluno:</label>
+              <label htmlFor="search-report" className="text-sm font-medium text-gray-600 mb-1 block">Pesquisar Relatórios:</label>
               <form onSubmit={(e) => { e.preventDefault(); handleSearchSubmit(searchTerm); }}>
-                <input
-                    type="text"
-                    id="search-report"
-                    placeholder="Nome do aluno..."
-                    value={searchTerm}
-                    onChange={handleSearchChange}
-                    className="w-full p-2 border border-gray-300 rounded-md shadow-sm text-sm focus:ring-emerald-500 focus:border-emerald-500"
-                />
+                <div className="relative">
+                    <input
+                        type="text"
+                        id="search-report"
+                        placeholder="Digite o nome do aluno..."
+                        value={searchTerm}
+                        onChange={handleSearchChange}
+                        className="w-full p-2 pl-3 pr-10 border border-gray-300 rounded-md shadow-sm text-sm focus:ring-emerald-500 focus:border-emerald-500"
+                    />
+                    <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                        {isAiSearching ? (
+                            <svg className="animate-spin h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-emerald-600" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M9.622 3.203a.75.75 0 01.756 0l1.25 1.25a.75.75 0 010 1.06l-1.25 1.25a.75.75 0 01-1.06 0l-1.25-1.25a.75.75 0 010-1.06l1.25-1.25zM12.5 6.5a.75.75 0 00-1.06 0l-1.25 1.25a.75.75 0 000 1.06l1.25 1.25a.75.75 0 001.06 0l1.25-1.25a.75.75 0 000-1.06L12.5 6.5zM5.378 8.203a.75.75 0 01.756 0l1.25 1.25a.75.75 0 010 1.06l-1.25 1.25a.75.75 0 01-1.06 0L4.122 10.51a.75.75 0 010-1.06l1.25-1.25zM10 11.25a.75.75 0 00-1.06 0l-1.25 1.25a.75.75 0 000 1.06l1.25 1.25a.75.75 0 001.06 0l1.25-1.25a.75.75 0 000-1.06L10 11.25z" clipRule="evenodd" />
+                            </svg>
+                        )}
+                    </div>
+                </div>
               </form>
+              <p className="text-xs text-gray-500 mt-1">Pressione Enter para busca inteligente com IA (ex: "casos graves de bullying").</p>
+               {aiFilteredIds !== null && !isAiSearching && (
+                <div className="mt-2 text-xs text-center text-emerald-700 bg-emerald-50 p-1.5 rounded-md">
+                    {aiFilteredIds.length > 0 ? `Exibindo ${aiFilteredIds.length} resultado(s) da busca inteligente.` : 'Nenhum resultado encontrado pela IA.'}
+                </div>
+                )}
               {recentSearches.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1.5">
                     {recentSearches.map(term => (
@@ -408,6 +611,14 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
         }
       `}</style>
     </aside>
+    <TrendAnalysisModal
+        isOpen={isTrendModalOpen}
+        onClose={() => setIsTrendModalOpen(false)}
+        analysisResult={trendAnalysisResult}
+        isLoading={isAnalyzingTrends}
+        error={trendAnalysisError}
+    />
+    </>
   );
 };
 
