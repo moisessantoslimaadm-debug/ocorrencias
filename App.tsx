@@ -21,7 +21,6 @@ import ConfirmationModal from './components/ConfirmationModal';
 import GeminiAnalysisModal from './components/GeminiAnalysisModal';
 import ApiKeyModal from './components/ApiKeyModal';
 import { seedData } from './data/seedData';
-import Dropdown from './components/Dropdown';
 import FloatingActionButton from './components/FloatingActionButton';
 
 // Add type declarations for CDN scripts
@@ -47,25 +46,29 @@ const validateAddress = (address: string): string => {
     return '';
   }
 
-  const hasNumber = /\d/.test(trimmedAddress);
-  const hasComma = /,/.test(trimmedAddress);
-  const hasZipCode = /\d{5}-?\d{3}/.test(trimmedAddress);
-  const hasUF = /(,|-|\s)\b[A-Z]{2}\b/i.test(trimmedAddress);
-
-  if (!hasNumber) {
-    return 'Endereço inválido. O número da residência está faltando.';
-  }
-  if (!hasComma) {
-    return 'Endereço inválido. Use vírgulas para separar as partes (rua, bairro, etc.).';
-  }
-  if (!hasZipCode) {
-    return 'Endereço inválido. O CEP (ex: 12345-678) está faltando.';
-  }
-  if (!hasUF) {
-    return 'Endereço inválido. A sigla do estado (UF) está faltando.';
-  }
+  // Check for minimum length first, as a very short address will fail other checks anyway.
   if (trimmedAddress.length < 15) {
-    return 'Endereço muito curto. Forneça mais detalhes.';
+    return 'Endereço muito curto. Por favor, forneça mais detalhes.';
+  }
+
+  const hasNumber = /\d/.test(trimmedAddress);
+  if (!hasNumber) {
+    return 'Endereço inválido. O número da residência parece estar faltando.';
+  }
+
+  const hasComma = /,/.test(trimmedAddress);
+  if (!hasComma) {
+    return 'Endereço inválido. Utilize vírgulas para separar rua, bairro, cidade, etc.';
+  }
+
+  const hasZipCode = /\d{5}-?\d{3}/.test(trimmedAddress);
+  if (!hasZipCode) {
+    return 'Endereço inválido. O CEP (formato 12345-678) parece estar faltando.';
+  }
+  
+  const hasUF = /(,|-|\s)\b[A-Z]{2}\b/i.test(trimmedAddress);
+  if (!hasUF) {
+    return 'Endereço inválido. A sigla do estado (UF, ex: BA) parece estar faltando.';
   }
   
   return '';
@@ -272,6 +275,8 @@ function App() {
   // New state for load confirmation flow
   const [isLoadConfirmModalOpen, setIsLoadConfirmModalOpen] = useState(false);
   const [reportToLoadId, setReportToLoadId] = useState<string | null>(null);
+  const [isLeavePageModalOpen, setIsLeavePageModalOpen] = useState(false);
+  const [leavePageAction, setLeavePageAction] = useState<(() => void) | null>(null);
 
 
   // Gemini AI State
@@ -289,6 +294,24 @@ function App() {
     }
   }, []);
 
+  const checkForUnsavedChanges = (action: () => void) => {
+    const isPristine = JSON.stringify(formData) === JSON.stringify(getDefaultFormData());
+    if (!isPristine) {
+      setLeavePageAction(() => action);
+      setIsLeavePageModalOpen(true);
+    } else {
+      action();
+    }
+  };
+
+  const confirmLeavePage = () => {
+    if (leavePageAction) {
+      leavePageAction();
+    }
+    setIsLeavePageModalOpen(false);
+    setLeavePageAction(null);
+  };
+
   const handleLogin = () => {
     sessionStorage.setItem(AUTH_SESSION_KEY, 'true');
     setIsAuthenticated(true);
@@ -296,9 +319,11 @@ function App() {
   };
 
   const handleLogout = () => {
-    sessionStorage.removeItem(AUTH_SESSION_KEY);
-    setIsAuthenticated(false);
-    setShowGoodbyeScreen(true);
+    checkForUnsavedChanges(() => {
+      sessionStorage.removeItem(AUTH_SESSION_KEY);
+      setIsAuthenticated(false);
+      setShowGoodbyeScreen(true);
+    });
   };
   
   const handleReturnToLogin = () => {
@@ -326,22 +351,19 @@ function App() {
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    const hasUnsavedChanges = () => {
-      const draft = localStorage.getItem(DRAFT_STORAGE_KEY);
-      return !!draft && draft !== JSON.stringify(getDefaultFormData());
-    };
-
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (hasUnsavedChanges()) {
+      const isPristine = JSON.stringify(formData) === JSON.stringify(getDefaultFormData());
+      // Don't show the prompt if the form is pristine or we are about to submit
+      if (!isPristine && !isSubmitting) {
         event.preventDefault();
-        event.returnValue = '';
-        return '';
+        event.returnValue = ''; // Required for legacy browsers
+        return ''; // Required for modern browsers
       }
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [isAuthenticated]);
+  }, [isAuthenticated, formData, isSubmitting]); // Add formData and isSubmitting
 
 
   useEffect(() => {
@@ -828,7 +850,11 @@ function App() {
     setToast({ message: 'Status do relatório atualizado!', type: 'info' });
   }, []);
 
-  const handleNavigateToDashboard = () => setView('dashboard');
+  const handleNavigateToDashboard = () => {
+    checkForUnsavedChanges(() => {
+      setView('dashboard');
+    });
+  };
   const handleToggleHistory = () => setIsHistoryPanelOpen(prev => !prev);
 
 
@@ -1295,13 +1321,6 @@ function App() {
           onClose={handleToggleHistory}
           currentReportId={editingReportId}
           onSetToast={setToast}
-          onApiKeyCheck={() => {
-            if (!apiKey) {
-              setIsApiKeyModalOpen(true);
-              return false;
-            }
-            return true;
-          }}
         />
 
         {/* --- Modals and Toasts --- */}
@@ -1347,6 +1366,17 @@ function App() {
           confirmText="Descartar e Carregar"
         >
           Você tem alterações não salvas no formulário atual. Deseja descartá-las para carregar um relatório do histórico?
+        </ConfirmationModal>
+
+        <ConfirmationModal
+          isOpen={isLeavePageModalOpen}
+          onClose={() => setIsLeavePageModalOpen(false)}
+          onConfirm={confirmLeavePage}
+          title="Descartar Alterações?"
+          variant="danger"
+          confirmText="Sair e Descartar"
+        >
+          Você possui alterações não salvas. Tem certeza que deseja sair desta página e perder seu progresso?
         </ConfirmationModal>
 
         <GeminiAnalysisModal

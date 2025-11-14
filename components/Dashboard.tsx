@@ -20,6 +20,16 @@ const StatCard: React.FC<{ title: string; value: number; icon: React.ReactNode; 
   </div>
 );
 
+const getStatusBadge = (status: string) => {
+    switch (status) {
+        case 'Novo': return 'bg-blue-100 text-blue-800';
+        case 'Em Análise': return 'bg-purple-100 text-purple-800';
+        case 'Resolvido': return 'bg-green-100 text-green-800';
+        case 'Arquivado': return 'bg-gray-200 text-gray-800';
+        default: return 'bg-gray-100 text-gray-800';
+    }
+};
+
 const Dashboard: React.FC<DashboardProps> = ({ reports, onLoadReport, onNewReport }) => {
   const totalReports = reports.length;
   const inAnalysis = reports.filter(r => r.status === 'Em Análise').length;
@@ -59,7 +69,7 @@ const Dashboard: React.FC<DashboardProps> = ({ reports, onLoadReport, onNewRepor
                                            {new Date(report.savedAt).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long' })} &middot; Gravidade: {report.occurrenceSeverity || 'N/D'}
                                        </p>
                                    </div>
-                                   <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${report.status === 'Resolvido' || report.status === 'Arquivado' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>
+                                   <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${getStatusBadge(report.status)}`}>
                                        {report.status}
                                    </span>
                                </div>
