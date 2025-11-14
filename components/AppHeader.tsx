@@ -3,11 +3,14 @@ import React from 'react';
 interface AppHeaderProps {
   onLogout: () => void;
   onApiKeyClick: () => void;
+  onNavigateToDashboard: () => void;
+  onToggleHistory: () => void;
+  currentView: 'dashboard' | 'form';
 }
 
-const AppHeader: React.FC<AppHeaderProps> = ({ onLogout, onApiKeyClick }) => {
+const AppHeader: React.FC<AppHeaderProps> = ({ onLogout, onApiKeyClick, onNavigateToDashboard, onToggleHistory, currentView }) => {
   return (
-    <header className="bg-emerald-700 p-6 text-white flex justify-between items-center">
+    <header className="bg-emerald-700 p-4 sm:p-6 text-white flex justify-between items-center">
       <div className="flex items-center gap-4">
         <div className="flex-shrink-0 bg-white/20 p-2 rounded-lg">
           <svg 
@@ -26,11 +29,31 @@ const AppHeader: React.FC<AppHeaderProps> = ({ onLogout, onApiKeyClick }) => {
           </svg>
         </div>
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold">Registro de Ocorrência Escolar</h1>
-          <p className="text-emerald-200 mt-1">Plataforma Inteligente para Gestão de Situações Críticas</p>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Registro de Ocorrência Escolar</h1>
+          <p className="text-emerald-200 mt-1 text-sm sm:text-base">Plataforma Inteligente para Gestão</p>
         </div>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 sm:gap-3">
+        {currentView === 'form' && (
+             <button
+                onClick={onNavigateToDashboard}
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-emerald-600 rounded-md hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-emerald-700 focus:ring-white transition-colors"
+                aria-label="Voltar para o Painel"
+                title="Voltar para o Painel"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L10 4.414l5.293 5.293a1 1 0 001.414-1.414l-7-7z" /><path d="M10 18a8 8 0 100-16 8 8 0 000 16zm0 2A10 10 0 1010 0a10 10 0 000 20z" /></svg>
+                <span className="hidden md:inline">Painel</span>
+            </button>
+        )}
+         <button
+            onClick={onToggleHistory}
+            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-emerald-600 rounded-md hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-emerald-700 focus:ring-white transition-colors"
+            aria-label="Ver Histórico"
+            title="Ver Histórico"
+        >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
+            <span className="hidden md:inline">Histórico</span>
+        </button>
         <button
             onClick={onApiKeyClick}
             className="p-2 text-white bg-emerald-600 rounded-md hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-emerald-700 focus:ring-white transition-colors"

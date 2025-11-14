@@ -4,21 +4,42 @@ import SectionHeader from '../SectionHeader';
 import InputField from '../InputField';
 import StudentPhotoUpload from '../StudentPhotoUpload';
 import Tooltip from '../Tooltip';
+import AutocompleteField from '../AutocompleteField';
+import { schoolSuggestions, municipalitySuggestions } from '../../data/autocompleteData';
 
 interface TabIdentificacaoProps {
   formData: OccurrenceReport;
   handleChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handleBlur: (e: React.FocusEvent<HTMLInputElement>) => void;
   onPhotoChange: (photo: ReportImage | null) => void;
+  onAutocompleteChange: (name: keyof OccurrenceReport, value: string) => void;
   errors: FormErrors;
 }
 
-const TabIdentificacao: React.FC<TabIdentificacaoProps> = ({ formData, handleChange, handleBlur, onPhotoChange, errors }) => {
+const TabIdentificacao: React.FC<TabIdentificacaoProps> = ({ formData, handleChange, handleBlur, onPhotoChange, onAutocompleteChange, errors }) => {
   return (
     <div className="animate-fade-in-up space-y-4">
       <div className="bg-gray-50 p-4 rounded-md border border-gray-200 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <InputField id="schoolUnit" name="schoolUnit" label="Unidade Escolar" type="text" value={formData.schoolUnit} onChange={handleChange} className="lg:col-span-4" error={errors.schoolUnit} />
-          <InputField id="municipality" name="municipality" label="Município" type="text" value={formData.municipality} onChange={handleChange} className="lg:col-span-3" error={errors.municipality} />
+          <AutocompleteField
+            id="schoolUnit"
+            name="schoolUnit"
+            label="Unidade Escolar"
+            value={formData.schoolUnit}
+            onChange={(value) => onAutocompleteChange('schoolUnit', value)}
+            suggestions={schoolSuggestions}
+            className="lg:col-span-4"
+            error={errors.schoolUnit}
+          />
+          <AutocompleteField
+            id="municipality"
+            name="municipality"
+            label="Município"
+            value={formData.municipality}
+            onChange={(value) => onAutocompleteChange('municipality', value)}
+            suggestions={municipalitySuggestions}
+            className="lg:col-span-3"
+            error={errors.municipality}
+          />
           <InputField id="uf" name="uf" label="UF" type="text" value={formData.uf} onChange={handleChange} error={errors.uf} />
           <InputField id="fillDate" name="fillDate" label="Data de Preenchimento" type="date" value={formData.fillDate} onChange={handleChange} className="lg:col-span-2" error={errors.fillDate} readOnly/>
           <InputField id="fillTime" name="fillTime" label="Horário" type="time" value={formData.fillTime} onChange={handleChange} className="lg:col-span-2" error={errors.fillTime} readOnly />

@@ -4,7 +4,6 @@ import SectionHeader from '../SectionHeader';
 import InputField from '../InputField';
 
 interface TabFinalizacaoProps {
-  // FIX: The formData can have an optional 'id' when editing an existing report.
   formData: OccurrenceReport & { id?: string };
   handleChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   errors: FormErrors;

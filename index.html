@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -92,6 +93,33 @@
             page-break-after: avoid;
         }
       }
+      
+      /* Loading Spinner Styles */
+      .app-loader {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        background-color: #f3f4f6; /* bg-gray-100 */
+        color: #4b5563; /* text-gray-600 */
+        font-family: 'Inter', sans-serif;
+        transition: opacity 0.5s ease-out;
+      }
+      .spinner {
+        width: 48px;
+        height: 48px;
+        border: 4px solid #d1d5db; /* border-gray-300 */
+        border-top-color: #10b981; /* emerald-500 */
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 1rem;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
     </style>
   <script type="importmap">
 {
@@ -105,7 +133,12 @@
 </script>
 </head>
   <body class="bg-gray-100">
-    <div id="root"></div>
+    <div id="root">
+      <div class="app-loader">
+        <div class="spinner"></div>
+        <p>Carregando plataforma...</p>
+      </div>
+    </div>
     <script type="module" src="/index.tsx"></script>
   </body>
 </html>

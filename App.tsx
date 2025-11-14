@@ -12,6 +12,7 @@ import TabEvidencias from './components/tabs/TabEvidencias';
 import TabFinalizacao from './components/tabs/TabFinalizacao';
 import LoginScreen from './components/LoginScreen'; // Import LoginScreen
 import GoodbyeScreen from './components/GoodbyeScreen'; // Import GoodbyeScreen
+import Dashboard from './components/Dashboard';
 
 import PrintableReport from './components/PrintableReport';
 import HistoryPanel from './components/HistoryPanel';
@@ -27,6 +28,7 @@ declare global {
   interface Window {
     jspdf: any;
     html2canvas: any;
+    XLSX: any;
   }
 }
 
@@ -240,7 +242,6 @@ const EMAIL_REGEX = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    // Check session storage for auth flag
     return sessionStorage.getItem(AUTH_SESSION_KEY) === 'true';
   });
   const [showGoodbyeScreen, setShowGoodbyeScreen] = useState(false);
@@ -261,6 +262,10 @@ function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [editingReportId, setEditingReportId] = useState<string | undefined>(formData.id);
+  
+  // New state for view management
+  const [view, setView] = useState<'dashboard' | 'form'>('dashboard');
+  const [isHistoryPanelOpen, setIsHistoryPanelOpen] = useState(false);
 
 
   // Gemini AI State
@@ -454,6 +459,10 @@ function App() {
     
     checkMaxLength('occurrenceLocation', 100, 'Local da ocorrência');
     
+    if (formData.occurrenceSeverity && !severityOptions.some(opt => opt.value === formData.occurrenceSeverity)) {
+        newErrors.occurrenceSeverity = 'Por favor, selecione uma opção de gravidade válida.';
+    }
+    
     const isAnyOccurrenceTypeChecked = Object.values(formData.occurrenceTypes).some(value => value);
     if (!isAnyOccurrenceTypeChecked) {
         newErrors.occurrenceTypes = 'Selecione ao menos um tipo de ocorrência.';
@@ -548,6 +557,19 @@ function App() {
     });
   }, [errors, clearTabError]);
 
+  const handleAutocompleteChange = useCallback((name: keyof OccurrenceReport, value: string) => {
+      const fieldName = name as keyof FormErrors;
+      if (errors[fieldName]) {
+        setErrors(prev => ({ ...prev, [fieldName]: undefined }));
+      }
+      clearTabError(fieldName);
+
+      setFormData(prev => ({
+          ...prev,
+          [name]: value,
+      }));
+  }, [errors, clearTabError]);
+
   const handleCheckboxChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, checked } = e.target as { name: keyof OccurrenceReport['occurrenceTypes'], checked: boolean };
     
@@ -594,8 +616,17 @@ function App() {
     setIsClearModalOpen(false);
     setIsCancelEditModalOpen(false);
     setEditingReportId(undefined);
+    setView('form'); // Ensure we are on the form view after clearing.
   };
 
+  const handleNewReport = () => {
+    const isDraftDirty = localStorage.getItem(DRAFT_STORAGE_KEY);
+     if (editingReportId || (isDraftDirty && isDraftDirty !== JSON.stringify(getDefaultFormData()))) {
+        setIsCancelEditModalOpen(true);
+    } else {
+      confirmClear();
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -678,7 +709,7 @@ function App() {
     // Revert the button back to its normal state after a delay.
     setTimeout(() => {
         setIsSuccess(false);
-    }, 1500); // Display success for 1.5 seconds.
+    }, 1000); // Display success for 1 second.
   };
 
   const handleLoadReport = (id: string) => {
@@ -714,6 +745,8 @@ function App() {
         setActiveTab(0);
         setLastSubmittedReport(null);
         setEditingReportId(reportToLoad.id);
+        setView('form'); // Switch to form view
+        setIsHistoryPanelOpen(false); // Close panel on load
         window.scrollTo(0, 0);
     }
   };
@@ -755,6 +788,9 @@ function App() {
     );
     setToast({ message: 'Status do relatório atualizado!', type: 'info' });
   }, []);
+
+  const handleNavigateToDashboard = () => setView('dashboard');
+  const handleToggleHistory = () => setIsHistoryPanelOpen(prev => !prev);
 
 
   const reportForExport = isSubmitted ? lastSubmittedReport : (editingReportId ? formData : null);
@@ -825,55 +861,89 @@ function App() {
     }
   };
 
-  const handleExportSingleCsv = () => {
+  const handleExportExcel = () => {
     if (!reportForExport) return;
 
-    const headers = [
-      "Status", "Unidade Escolar", "Município", "UF", "Data de Preenchimento", "Horário de Preenchimento",
-      "Nome do Aluno", "Foto do Aluno", "Data de Nascimento", "Idade", "Ano/Série", "Turno", "Nº de Matrícula",
-      "Nome do Responsável", "Parentesco", "Telefone do Responsável", "E-mail do Responsável", "Endereço do Responsável",
-      "Data e Hora da Ocorrência", "Local da Ocorrência", "Gravidade da Ocorrência", "Tipos de Ocorrência", "Descrição 'Outros'",
-      "Descrição Detalhada", "Evidências (Imagens)", "Pessoas Envolvidas", "Providências Imediatas",
-      "Encaminhamentos Realizados", "Observações do Serviço Social",
-      "Responsável pelo Registro", "Data do Registro", "Assinatura Responsável Legal", "Data Assinatura Resp. Legal",
-      "Assinatura Assistente Social", "Data Assinatura Assist. Social",
-      "Histórico de Modificações"
-    ];
+    if (!window.XLSX) {
+      setToast({ message: 'A biblioteca de exportação ainda não carregou. Tente novamente em um instante.', type: 'error' });
+      return;
+    }
 
-    const escapeCsvCell = (cell: any): string => {
-        const cellStr = String(cell ?? '').replace(/"/g, '""');
-        return `"${cellStr}"`;
-    };
-
+    const headers = ["Campo", "Informação"];
     const checkedTypes = occurrenceTypeLabels
-        .filter(({ key }) => reportForExport.occurrenceTypes[key])
-        .map(({ label }) => label)
-        .join('; ');
-    
-    const imageNames = reportForExport.images.map(img => img.name).join('; ');
-    const modificationDates = reportForExport.modificationHistory.map(mod => new Date(mod.date).toLocaleString('pt-BR')).join('; ');
-    
-    const row = [
-      reportForExport.status, reportForExport.schoolUnit, reportForExport.municipality, reportForExport.uf, reportForExport.fillDate, reportForExport.fillTime,
-      reportForExport.studentName, reportForExport.studentPhoto ? 'Sim' : 'Não', reportForExport.studentDob, reportForExport.studentAge, reportForExport.studentGrade, reportForExport.studentShift, reportForExport.studentRegistration,
-      reportForExport.guardianName, reportForExport.guardianRelationship, reportForExport.guardianPhone, reportForExport.guardianEmail, reportForExport.guardianAddress,
-      reportForExport.occurrenceDateTime, reportForExport.occurrenceLocation, reportForExport.occurrenceSeverity, checkedTypes, reportForExport.occurrenceOtherDescription,
-      reportForExport.detailedDescription, imageNames || "Nenhuma", reportForExport.peopleInvolved, reportForExport.immediateActions,
-      reportForExport.referralsMade, reportForExport.socialServiceObservation,
-      reportForExport.reporterName, reportForExport.reporterDate, reportForExport.guardianSignatureName, reportForExport.guardianSignatureDate,
-      reportForExport.socialWorkerSignatureName, reportForExport.socialWorkerSignatureDate,
-      modificationDates || "Nenhuma"
+      .filter(({ key }) => reportForExport.occurrenceTypes[key])
+      .map(({ label }) => label)
+      .join('; ');
+    const imageNames = reportForExport.images.map(img => img.name).join('; ') || "Nenhuma";
+    const modificationDates = reportForExport.modificationHistory.map(mod => new Date(mod.date).toLocaleString('pt-BR')).join('; ') || "Nenhuma";
+
+    const data = [
+      ["ID do Relatório", (reportForExport as SavedReport).id || 'Novo'],
+      ["Status", reportForExport.status],
+      ["Data de Preenchimento", `${reportForExport.fillDate} ${reportForExport.fillTime}`],
+      ["Unidade Escolar", reportForExport.schoolUnit],
+      ["Município", reportForExport.municipality],
+      ["UF", reportForExport.uf],
+      ["--- DADOS DO ALUNO ---", ""],
+      ["Nome do Aluno", reportForExport.studentName],
+      ["Foto Anexada", reportForExport.studentPhoto ? 'Sim' : 'Não'],
+      ["Data de Nascimento", reportForExport.studentDob],
+      ["Idade", reportForExport.studentAge],
+      ["Ano/Série", reportForExport.studentGrade],
+      ["Turno", reportForExport.studentShift],
+      ["Nº de Matrícula", reportForExport.studentRegistration],
+      ["--- DADOS DO RESPONSÁVEL ---", ""],
+      ["Nome do Responsável", reportForExport.guardianName],
+      ["Parentesco", reportForExport.guardianRelationship],
+      ["Telefone", reportForExport.guardianPhone],
+      ["E-mail", reportForExport.guardianEmail],
+      ["Endereço", reportForExport.guardianAddress],
+      ["--- DADOS DA OCORRÊNCIA ---", ""],
+      ["Data e Hora da Ocorrência", reportForExport.occurrenceDateTime.replace('T', ' ')],
+      ["Local da Ocorrência", reportForExport.occurrenceLocation],
+      ["Gravidade", reportForExport.occurrenceSeverity],
+      ["Tipos de Ocorrência", checkedTypes],
+      ["Descrição 'Outros'", reportForExport.occurrenceOtherDescription],
+      ["Descrição Detalhada", reportForExport.detailedDescription],
+      ["--- AÇÕES E EVIDÊNCIAS ---", ""],
+      ["Evidências (Imagens)", imageNames],
+      ["Pessoas Envolvidas", reportForExport.peopleInvolved],
+      ["Providências Imediatas", reportForExport.immediateActions],
+      ["Encaminhamentos Realizados", reportForExport.referralsMade],
+      ["Observações do Serviço Social", reportForExport.socialServiceObservation],
+      ["--- FINALIZAÇÃO ---", ""],
+      ["Responsável pelo Registro", reportForExport.reporterName],
+      ["Data do Registro", reportForExport.reporterDate],
+      ["Assinatura Responsável Legal", reportForExport.guardianSignatureName],
+      ["Data Ass. Resp. Legal", reportForExport.guardianSignatureDate],
+      ["Assinatura Assistente Social", reportForExport.socialWorkerSignatureName],
+      ["Data Ass. Assist. Social", reportForExport.socialWorkerSignatureDate],
+      ["Histórico de Modificações", modificationDates],
     ];
-    
-    const csvContent = [headers.join(','), row.map(escapeCsvCell).join(',')].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-t;-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `relatorio_${reportForExport.studentName.replace(/ /g, '_') || 'ocorrencia'}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+
+    const worksheet = window.XLSX.utils.aoa_to_sheet([headers, ...data]);
+    worksheet['!cols'] = [{ wch: 30 }, { wch: 80 }];
+
+    // Style headers and section separators
+    const headerStyle = { font: { bold: true } };
+    const sectionStyle = { font: { bold: true, sz: 14 }, fill: { fgColor: { rgb: "FFE0E0E0" } } };
+    worksheet['A1'].s = headerStyle;
+    worksheet['B1'].s = headerStyle;
+    data.forEach((row, index) => {
+        if (row[0].startsWith("---")) {
+            const rowIndex = index + 2;
+            worksheet[`A${rowIndex}`].s = sectionStyle;
+            if (worksheet[`B${rowIndex}`]) {
+                worksheet[`B${rowIndex}`].s = sectionStyle;
+            } else {
+                 worksheet[`B${rowIndex}`] = { t:'s', v: '', s: sectionStyle };
+            }
+        }
+    });
+
+    const workbook = window.XLSX.utils.book_new();
+    window.XLSX.utils.book_append_sheet(workbook, worksheet, 'Relatório de Ocorrência');
+    window.XLSX.writeFile(workbook, `Relatorio_${reportForExport.studentName.replace(/ /g, '_') || 'Ocorrencia'}.xlsx`);
   };
 
 
@@ -998,7 +1068,7 @@ function App() {
     const commonProps = { formData, handleChange, handleBlur, errors };
     switch (activeTab) {
       case 0:
-        return <TabIdentificacao {...commonProps} onPhotoChange={handleStudentPhotoChange} />;
+        return <TabIdentificacao {...commonProps} onPhotoChange={handleStudentPhotoChange} onAutocompleteChange={handleAutocompleteChange} />;
       case 1:
         return <TabOcorrencia {...commonProps} onCheckboxChange={handleCheckboxChange} onAnalyze={handleAnalyzeWithAI} isAnalyzing={isAnalyzing} />;
       case 2:
@@ -1021,182 +1091,203 @@ function App() {
   return (
     <>
       <div className="non-printable min-h-screen bg-gray-100 p-4 sm:p-6 lg:p-8">
-        <div className="flex flex-col lg:flex-row gap-8 w-full max-w-screen-2xl mx-auto">
+        <div className="w-full max-w-screen-2xl mx-auto">
           
-          <main className="flex-grow lg:order-1">
-            <div className="bg-white rounded-lg shadow-2xl overflow-hidden">
-              <AppHeader onLogout={handleLogout} onApiKeyClick={() => setIsApiKeyModalOpen(true)} />
+          <div className="bg-white rounded-lg shadow-2xl overflow-hidden">
+            <AppHeader
+              onLogout={handleLogout}
+              onApiKeyClick={() => setIsApiKeyModalOpen(true)}
+              onNavigateToDashboard={handleNavigateToDashboard}
+              onToggleHistory={handleToggleHistory}
+              currentView={view}
+            />
 
-              <div className="p-6 md:p-8">
-                {isSubmitted && (
-                  <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6 animate-fade-in-down" role="alert">
-                    <p className="font-bold">Sucesso!</p>
-                    <p>Ocorrência registrada com sucesso! Agora você pode exportar, imprimir ou baixar o relatório.</p>
-                  </div>
-                )}
-                {editingReportId && (
-                  <div className="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 mb-6 flex justify-between items-center animate-fade-in-down" role="status">
-                      <div>
-                        <p className="font-bold">Modo de Edição</p>
-                        <p>Você está editando o relatório de <strong>{formData.studentName}</strong>.</p>
-                      </div>
-                      <button 
-                        onClick={() => setIsCancelEditModalOpen(true)}
-                        className="px-3 py-1.5 text-sm font-medium text-blue-800 bg-blue-200 rounded-md hover:bg-blue-300"
-                      >
-                        Cancelar Edição
-                      </button>
-                  </div>
-                )}
-
-                <form onSubmit={handleSubmit} noValidate>
-                  <div className="mb-6">
-                    <div className="bg-gray-200 rounded-full h-2.5">
-                      <div className="bg-emerald-500 h-2.5 rounded-full transition-all duration-500" style={{ width: `${progressPercentage}%` }}></div>
+            <main className="p-6 md:p-8">
+              {view === 'dashboard' ? (
+                <Dashboard
+                  reports={history}
+                  onLoadReport={handleLoadReport}
+                  onNewReport={handleNewReport}
+                />
+              ) : (
+                <>
+                  {isSubmitted && (
+                    <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6 animate-fade-in-down" role="alert">
+                      <p className="font-bold">Sucesso!</p>
+                      <p>Ocorrência registrada com sucesso! Agora você pode exportar, imprimir ou baixar o relatório.</p>
                     </div>
-                  </div>
-
-                  <div className="border-b border-gray-200 mb-6">
-                    <nav className="-mb-px flex space-x-6" aria-label="Tabs">
-                      {TABS.map((tabName, index) => (
-                        <button
-                          key={tabName}
-                          type="button"
-                          onClick={() => setActiveTab(index)}
-                          className={`relative whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors
-                            ${activeTab === index 
-                              ? 'border-emerald-500 text-emerald-600' 
-                              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                            }`}
+                  )}
+                  {editingReportId && (
+                    <div className="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 mb-6 flex justify-between items-center animate-fade-in-down" role="status">
+                        <div>
+                          <p className="font-bold">Modo de Edição</p>
+                          <p>Você está editando o relatório de <strong>{formData.studentName}</strong>.</p>
+                        </div>
+                        <button 
+                          onClick={() => setIsCancelEditModalOpen(true)}
+                          className="px-3 py-1.5 text-sm font-medium text-blue-800 bg-blue-200 rounded-md hover:bg-blue-300"
                         >
-                          {tabName}
-                          {tabErrors[index] && 
-                            <span className="absolute top-2 -right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full" title="Esta aba contém erros">
-                                <span className="sr-only">Esta aba contém erros</span>
-                            </span>
-                          }
-                        </button>
-                      ))}
-                    </nav>
-                  </div>
-
-                  <div id="tab-content-wrapper" className="min-h-[400px]">
-                    {renderTabContent()}
-                  </div>
-
-                  <div className="mt-8 pt-5 border-t border-gray-200">
-                    <div className="flex justify-between items-center mb-6">
-                        <button
-                            type="button"
-                            onClick={() => setActiveTab(p => p - 1)}
-                            disabled={activeTab === 0}
-                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        >
-                            Voltar
-                        </button>
-                        <span className="text-sm text-gray-500">
-                          Etapa {activeTab + 1} de {TABS.length}
-                        </span>
-                        <button
-                            type="button"
-                            onClick={() => setActiveTab(p => p + 1)}
-                            disabled={activeTab === TABS.length - 1}
-                            className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 border border-transparent rounded-md hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                        >
-                            Avançar
+                          Cancelar Edição
                         </button>
                     </div>
+                  )}
 
-                    <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-                      <div className="flex-grow">
-                        {/* Auto-save message is now a toast notification */}
+                  <form onSubmit={handleSubmit} noValidate>
+                    <div className="mb-6">
+                      <div className="bg-gray-200 rounded-full h-2.5">
+                        <div className="bg-emerald-500 h-2.5 rounded-full transition-all duration-500" style={{ width: `${progressPercentage}%` }}></div>
                       </div>
+                    </div>
 
-                      <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
-                           <button
+                    <div className="border-b border-gray-200 mb-6">
+                      <nav className="-mb-px flex space-x-6" aria-label="Tabs">
+                        {TABS.map((tabName, index) => (
+                          <button
+                            key={tabName}
                             type="button"
-                            onClick={handleClear}
-                            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition"
+                            onClick={() => setActiveTab(index)}
+                            className={`relative whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm transition-colors
+                              ${activeTab === index 
+                                ? 'border-emerald-500 text-emerald-600' 
+                                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                              }`}
                           >
-                            Limpar Formulário
+                            {tabName}
+                            {tabErrors[index] && 
+                              <span className="absolute top-2 -right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full" title="Esta aba contém erros">
+                                  <span className="sr-only">Esta aba contém erros</span>
+                              </span>
+                            }
                           </button>
-                          {editingReportId && (
-                            <button
-                                type="button"
-                                onClick={handleSaveDraft}
-                                className="w-full sm:w-auto px-4 py-2 border border-emerald-300 rounded-md shadow-sm text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition"
+                        ))}
+                      </nav>
+                    </div>
+
+                    <div id="tab-content-wrapper" className="min-h-[400px]">
+                      {renderTabContent()}
+                    </div>
+
+                    <div className="mt-8 pt-5 border-t border-gray-200">
+                      <div className="flex justify-between items-center mb-6">
+                          <button
+                              type="button"
+                              onClick={() => setActiveTab(p => p - 1)}
+                              disabled={activeTab === 0}
+                              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          >
+                              Voltar
+                          </button>
+                          <span className="text-sm text-gray-500">
+                            Etapa {activeTab + 1} de {TABS.length}
+                          </span>
+                          <button
+                              type="button"
+                              onClick={() => setActiveTab(p => p + 1)}
+                              disabled={activeTab === TABS.length - 1}
+                              className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 border border-transparent rounded-md hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          >
+                              Avançar
+                          </button>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+                        <div className="flex-grow">
+                          {/* Auto-save message is now a toast notification */}
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
+                             <button
+                              type="button"
+                              onClick={handleClear}
+                              className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition"
                             >
-                                Salvar Rascunho
+                              Limpar Formulário
                             </button>
-                          )}
-                          
-                          {showExportOptions ? (
-                              <Dropdown
-                                  buttonText="Exportar Relatório"
-                                  isLoading={isDownloadingPdf}
-                                  loadingText="Baixando..."
+                            {editingReportId && (
+                              <button
+                                  type="button"
+                                  onClick={handleSaveDraft}
+                                  className="w-full sm:w-auto px-4 py-2 border border-emerald-300 rounded-md shadow-sm text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition"
                               >
-                                  <button onClick={handlePrint} className="text-left w-full block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Imprimir Relatório</button>
-                                  <button onClick={handleDownloadPdf} className="text-left w-full block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Baixar como PDF</button>
-                                  <button onClick={handleExportSingleCsv} className="text-left w-full block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Exportar para CSV</button>
-                              </Dropdown>
-                          ) : (
-                            <button
-                              type="submit"
-                              disabled={isSubmitting || isSuccess}
-                              className={`w-full sm:w-auto px-6 py-3 border border-transparent rounded-md shadow-sm text-base font-medium text-white transition flex items-center justify-center disabled:cursor-not-allowed ${
-                                isSuccess
-                                  ? 'bg-green-500'
-                                  : 'bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400'
-                              } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500`}
-                            >
-                              {isSubmitting ? (
-                                <>
-                                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                  </svg>
-                                  <span>{editingReportId ? 'Atualizando...' : 'Registrando...'}</span>
-                                </>
-                              ) : isSuccess ? (
-                                <>
-                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                  </svg>
-                                  <span>Sucesso!</span>
-                                </>
-                              ) : (
-                                submitButtonText
-                              )}
-                            </button>
-                          )}
+                                  Salvar Rascunho
+                              </button>
+                            )}
+                            
+                            {showExportOptions ? (
+                                <Dropdown
+                                    buttonText="Exportar Relatório"
+                                    isLoading={isDownloadingPdf}
+                                    loadingText="Baixando..."
+                                >
+                                    <button onClick={handlePrint} className="text-left w-full block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Imprimir Relatório</button>
+                                    <button onClick={handleDownloadPdf} className="text-left w-full block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Baixar como PDF</button>
+                                    <button onClick={handleExportExcel} className="text-left w-full block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Exportar para Excel</button>
+                                </Dropdown>
+                            ) : (
+                              <button
+                                type="submit"
+                                disabled={isSubmitting || isSuccess}
+                                className={`w-full sm:w-auto px-6 py-3 border border-transparent rounded-md shadow-sm text-base font-medium text-white transition-all duration-300 flex items-center justify-center disabled:cursor-not-allowed ${
+                                  isSuccess
+                                    ? 'bg-green-500'
+                                    : 'bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400'
+                                } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500`}
+                              >
+                                {isSubmitting ? (
+                                  <>
+                                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    <span>{editingReportId ? 'Atualizando...' : 'Registrando...'}</span>
+                                  </>
+                                ) : isSuccess ? (
+                                  <>
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    <span>Sucesso!</span>
+                                  </>
+                                ) : (
+                                  submitButtonText
+                                )}
+                              </button>
+                            )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </form>
-              </div>
-            </div>
-            <footer className="text-center text-gray-500 text-sm mt-8 pb-4">
-                <p>Plataforma Inteligente de Registro de Ocorrências</p>
-                <p>&copy; {new Date().getFullYear()}. Todos os direitos reservados.</p>
-              </footer>
-          </main>
-          
-          <aside className="w-full lg:w-80 xl:w-96 flex-shrink-0 lg:order-2">
-             <HistoryPanel 
-                reports={history} 
-                onLoadReport={handleLoadReport} 
-                onDeleteReport={handleDeleteReport}
-                onImportReports={handleImportReports}
-                onStatusChange={handleStatusChange}
-                currentReportId={editingReportId}
-                onSetToast={setToast}
-                onApiKeyCheck={() => { if (!apiKey) setIsApiKeyModalOpen(true); return !!apiKey; }}
-              />
-          </aside>
-
+                  </form>
+                </>
+              )}
+            </main>
+          </div>
+          <footer className="text-center text-gray-500 text-sm mt-8 pb-4">
+              <p>Plataforma Inteligente de Registro de Ocorrências</p>
+              <p>&copy; {new Date().getFullYear()}. Todos os direitos reservados.</p>
+          </footer>
         </div>
       </div>
+       
+      {/* History Panel Side-drawer */}
+      <div
+          className={`fixed inset-0 z-30 transition-opacity duration-300 ${isHistoryPanelOpen ? 'bg-black bg-opacity-50' : 'bg-transparent pointer-events-none'}`}
+          onClick={handleToggleHistory}
+          aria-hidden="true"
+      ></div>
+      <aside className={`fixed top-0 right-0 h-full bg-gray-50 shadow-2xl z-40 transition-transform duration-300 ease-in-out w-full max-w-md sm:max-w-lg ${isHistoryPanelOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+          <HistoryPanel 
+              reports={history} 
+              onLoadReport={handleLoadReport} 
+              onDeleteReport={handleDeleteReport}
+              onImportReports={handleImportReports}
+              onStatusChange={handleStatusChange}
+              currentReportId={editingReportId}
+              onSetToast={setToast}
+              onApiKeyCheck={() => { if (!apiKey) setIsApiKeyModalOpen(true); return !!apiKey; }}
+              onClose={handleToggleHistory}
+          />
+      </aside>
+
       <PrintableReport reportData={reportForExport} />
       {toast && (
         <Toast
@@ -1233,11 +1324,11 @@ function App() {
         isOpen={isCancelEditModalOpen}
         onClose={() => setIsCancelEditModalOpen(false)}
         onConfirm={confirmClear}
-        title="Cancelar Edição"
-        confirmText="Sim, Cancelar Edição"
+        title="Descartar Alterações"
+        confirmText="Sim, Descartar"
         variant="danger"
       >
-        Você tem certeza que deseja cancelar a edição? Todas as alterações não salvas serão perdidas.
+        Você tem certeza que deseja descartar as alterações não salvas?
       </ConfirmationModal>
       <GeminiAnalysisModal
         isOpen={isGeminiModalOpen}
