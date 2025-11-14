@@ -309,27 +309,28 @@ function App() {
 
   // Handle focus management when switching tabs.
   useEffect(() => {
-    // This logic runs after the tab has visually transitioned.
+    // This logic runs after the tab has visually transitioned to manage focus.
     const focusOnTabContent = () => {
+      const tabContentWrapper = document.getElementById('tab-content-wrapper');
+      if (!tabContentWrapper) return;
+
       const errorKeysOnCurrentTab = (Object.keys(errors) as Array<keyof FormErrors>)
         .filter(key => FIELD_TO_TAB_MAP[key] === activeTab);
-
+      
       let elementToFocus: HTMLElement | null = null;
-      const tabContentWrapper = document.getElementById('tab-content-wrapper');
 
       if (errorKeysOnCurrentTab.length > 0) {
-        // Find the first error element that is actually visible in the DOM
-        for (const key of errorKeysOnCurrentTab) {
-            const el = document.getElementById(key);
-            if (el) {
-                elementToFocus = el;
-                break;
-            }
-        }
-      } else if (tabContentWrapper) {
-        // If no errors, focus the first header or interactive element as a fallback
+        // Construct a selector for all fields with errors on the current tab.
+        // querySelector will find the first one in the DOM order, which is more reliable.
+        const errorSelector = errorKeysOnCurrentTab.map(key => `#${key}`).join(', ');
+        elementToFocus = tabContentWrapper.querySelector<HTMLElement>(errorSelector);
+      }
+      
+      // If no errors are present on the tab, or if a specific error element wasn't found,
+      // focus the tab's main header or the first interactive element as a fallback.
+      if (!elementToFocus) {
         elementToFocus = tabContentWrapper.querySelector('h2') ||
-                         tabContentWrapper.querySelector('input, textarea, select, button');
+                         tabContentWrapper.querySelector('input:not([disabled]), textarea:not([disabled]), select:not([disabled]), button:not([disabled])');
       }
 
       if (elementToFocus) {
@@ -590,14 +591,6 @@ function App() {
             setActiveTab(firstErrorTab);
         }
 
-        const firstErrorKey = Object.keys(validationErrors)[0];
-        setTimeout(() => {
-            const firstErrorElement = document.getElementById(firstErrorKey);
-            if (firstErrorElement) {
-                firstErrorElement.focus({ preventScroll: true });
-                firstErrorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-        }, 100);
         setIsSubmitting(false);
         return;
     }

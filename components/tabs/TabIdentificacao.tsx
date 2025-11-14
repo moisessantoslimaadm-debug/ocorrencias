@@ -45,7 +45,7 @@ const TabIdentificacao: React.FC<TabIdentificacaoProps> = ({ formData, handleCha
           <InputField id="guardianRelationship" name="guardianRelationship" label="Parentesco" type="text" value={formData.guardianRelationship} onChange={handleChange} />
           <InputField id="guardianPhone" name="guardianPhone" label="Contato telefônico" type="tel" value={formData.guardianPhone} onChange={handleChange} onBlur={handleBlur} placeholder="(00) 00000-0000" error={errors.guardianPhone} tooltip={<Tooltip text="O número deve conter 10 ou 11 dígitos, incluindo o DDD." />} />
           <InputField id="guardianEmail" name="guardianEmail" label="E-mail de contato" type="email" value={formData.guardianEmail} onChange={handleChange} onBlur={handleBlur} placeholder="exemplo@email.com" error={errors.guardianEmail} />
-          <InputField id="guardianAddress" name="guardianAddress" label="Endereço completo" type="text" value={formData.guardianAddress} onChange={handleChange} onBlur={handleBlur} className="md:col-span-2" error={errors.guardianAddress}/>
+          <InputField id="guardianAddress" name="guardianAddress" label="Endereço completo" type="text" value={formData.guardianAddress} onChange={handleChange} onBlur={handleBlur} className="md:col-span-2" error={errors.guardianAddress} tooltip={<Tooltip text="Exemplo: Rua das Flores, 123, Centro, São Paulo - SP, 01000-000" />}/>
       </div>
     </div>
   );
