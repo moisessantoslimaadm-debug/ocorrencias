@@ -44,7 +44,7 @@ export const FIELD_TO_TAB_MAP: { [key in keyof FormErrors]?: number } = {
   occurrenceDateTime: 1, occurrenceLocation: 1, occurrenceSeverity: 1,
   occurrenceTypes: 1, occurrenceOtherDescription: 1, detailedDescription: 1,
   // Tab 3: Finalização
-  reporterName: 3, reporterDate: 3,
+  reporterName: 3, reporterDate: 3, guardianSignatureDate: 3, socialWorkerSignatureDate: 3
 };
 
 export const calculateAge = (dob: string): string => {
@@ -218,11 +218,12 @@ function App() {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [reportToDelete, setReportToDelete] = useState<SavedReport | null>(null);
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);
-  const [autoSaveMessage, setAutoSaveMessage] = useState('');
+  const [isCancelEditModalOpen, setIsCancelEditModalOpen] = useState(false);
   const [lastSubmittedReport, setLastSubmittedReport] = useState<OccurrenceReport | null>(null);
   const [activeTab, setActiveTab] = useState(0);
   const [tabErrors, setTabErrors] = useState<Record<number, boolean>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSuccess, setIsSuccess] = useState(false);
   const [editingReportId, setEditingReportId] = useState<string | undefined>(formData.id);
 
 
@@ -251,8 +252,7 @@ function App() {
       if (!isSubmitted && !isPristine) {
         localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(formData));
         const time = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-        setAutoSaveMessage(`Rascunho salvo automaticamente às ${time}`);
-        setTimeout(() => setAutoSaveMessage(''), 5000);
+        setToast({ message: `Rascunho salvo automaticamente às ${time}`, type: 'success' });
       }
     }, 30000); // 30 seconds
 
@@ -287,9 +287,63 @@ function App() {
         localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(history));
     }
   }, [history, isAuthenticated]);
+
+  // Handle focus management when switching tabs.
+  useEffect(() => {
+    // This logic runs after the tab has visually transitioned.
+    const focusOnTabContent = () => {
+      const errorKeysOnCurrentTab = (Object.keys(errors) as Array<keyof FormErrors>)
+        .filter(key => FIELD_TO_TAB_MAP[key] === activeTab);
+
+      let elementToFocus: HTMLElement | null = null;
+      const tabContentWrapper = document.getElementById('tab-content-wrapper');
+
+      if (errorKeysOnCurrentTab.length > 0) {
+        // Find the first error element that is actually visible in the DOM
+        for (const key of errorKeysOnCurrentTab) {
+            const el = document.getElementById(key);
+            if (el) {
+                elementToFocus = el;
+                break;
+            }
+        }
+      } else if (tabContentWrapper) {
+        // If no errors, focus the first header or interactive element as a fallback
+        elementToFocus = tabContentWrapper.querySelector('h2') ||
+                         tabContentWrapper.querySelector('input, textarea, select, button');
+      }
+
+      if (elementToFocus) {
+        elementToFocus.focus({ preventScroll: true });
+        elementToFocus.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    };
+
+    // A timeout ensures the new tab's content is rendered before we try to focus.
+    const timer = setTimeout(focusOnTabContent, 100);
+
+    return () => clearTimeout(timer);
+  }, [activeTab]); // This effect should only run when the active tab changes.
   
-  const validateForm = (): FormErrors => {
+  const validateForm = useCallback((): FormErrors => {
     const newErrors: FormErrors = {};
+    const now = new Date();
+    // A date string 'YYYY-MM-DD' compared to now. `new Date('YYYY-MM-DD')` is midnight local time.
+    // So comparing against `now` is correct to check for future dates.
+    // To check if a date is "today or before", we can set `now` to the end of today.
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+
+
+    // Helper to check max length
+    const checkMaxLength = (field: keyof OccurrenceReport, maxLength: number, label: string) => {
+        const value = formData[field] as string | undefined;
+        if (value && value.length > maxLength) {
+            newErrors[field] = `${label} não pode exceder ${maxLength} caracteres.`;
+        }
+    };
+    
+    // --- REQUIRED FIELDS ---
     const requiredFields: (keyof OccurrenceReport)[] = [
       'schoolUnit', 'municipality', 'uf', 'studentName', 'studentDob',
       'occurrenceDateTime', 'occurrenceLocation', 'occurrenceSeverity',
@@ -301,19 +355,48 @@ function App() {
         newErrors[field as keyof OccurrenceReport] = 'Este campo é obrigatório.';
       }
     });
+
+    // --- SPECIFIC FIELD VALIDATIONS ---
+
+    // Tab 0: Identification
+    checkMaxLength('schoolUnit', 100, 'Unidade Escolar');
+    checkMaxLength('municipality', 100, 'Município');
+    if (formData.uf && !/^[A-Za-z]{2}$/.test(formData.uf)) {
+        newErrors.uf = 'UF deve conter exatamente 2 letras.';
+    }
     
-    // Validate DOB is not in the future
-    if (formData.studentDob && new Date(formData.studentDob) > new Date()) {
+    checkMaxLength('studentName', 150, 'Nome do aluno');
+    if (formData.studentDob && new Date(formData.studentDob) > endOfToday) {
         newErrors.studentDob = 'A data de nascimento não pode ser no futuro.';
     }
 
-    if (formData.guardianPhone) {
+    const registrationError = validateStudentRegistration(formData.studentRegistration);
+    if (registrationError) {
+        newErrors.studentRegistration = registrationError;
+    }
+    
+    checkMaxLength('guardianName', 150, 'Nome do responsável');
+    checkMaxLength('guardianRelationship', 50, 'Parentesco');
+    checkMaxLength('guardianAddress', 200, 'Endereço');
+    
+    if (formData.guardianPhone && formData.guardianPhone.replace(/\D/g, '').length > 0) {
         const phoneDigits = formData.guardianPhone.replace(/\D/g, '');
-        if (phoneDigits.length > 0 && ![10, 11].includes(phoneDigits.length)) {
+        if (![10, 11].includes(phoneDigits.length)) {
             newErrors.guardianPhone = 'Telefone inválido. Deve conter DDD + 8 ou 9 dígitos.';
         }
     }
+    
+    if (formData.guardianEmail && !EMAIL_REGEX.test(formData.guardianEmail)) {
+        newErrors.guardianEmail = 'Por favor, insira um endereço de e-mail válido.';
+    }
 
+    // Tab 1: Occurrence
+    if (formData.occurrenceDateTime && new Date(formData.occurrenceDateTime) > now) {
+        newErrors.occurrenceDateTime = 'A data da ocorrência não pode ser no futuro.';
+    }
+    
+    checkMaxLength('occurrenceLocation', 100, 'Local da ocorrência');
+    
     const isAnyOccurrenceTypeChecked = Object.values(formData.occurrenceTypes).some(value => value);
     if (!isAnyOccurrenceTypeChecked) {
         newErrors.occurrenceTypes = 'Selecione ao menos um tipo de ocorrência.';
@@ -322,18 +405,23 @@ function App() {
     if(formData.occurrenceTypes.other && !formData.occurrenceOtherDescription) {
         newErrors.occurrenceOtherDescription = "Especifique o tipo de ocorrência 'Outros'.";
     }
+    checkMaxLength('occurrenceOtherDescription', 200, 'Descrição de "Outros"');
+    checkMaxLength('detailedDescription', 2000, 'Descrição detalhada');
 
-    if (formData.guardianEmail && !EMAIL_REGEX.test(formData.guardianEmail)) {
-        newErrors.guardianEmail = 'Por favor, insira um endereço de e-mail válido.';
-    }
-
-    const registrationError = validateStudentRegistration(formData.studentRegistration);
-    if (registrationError) {
-        newErrors.studentRegistration = registrationError;
-    }
+    // Tab 3: Finalization
+    checkMaxLength('reporterName', 150, 'Responsável pelo registro');
+    
+    const dateFields: (keyof OccurrenceReport)[] = ['reporterDate', 'guardianSignatureDate', 'socialWorkerSignatureDate'];
+    dateFields.forEach(field => {
+      const dateValue = formData[field] as string | undefined;
+      if (dateValue && new Date(dateValue) > endOfToday) {
+        newErrors[field] = 'A data não pode ser no futuro.';
+      }
+    });
 
     return newErrors;
-  };
+  }, [formData]);
+
 
   const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -439,6 +527,7 @@ function App() {
     setIsSubmitted(false);
     setLastSubmittedReport(null);
     setIsClearModalOpen(false);
+    setIsCancelEditModalOpen(false);
     setEditingReportId(undefined);
   };
 
@@ -458,7 +547,7 @@ function App() {
             const tabIndex = FIELD_TO_TAB_MAP[key];
             if (tabIndex !== undefined) {
                 newTabErrors[tabIndex] = true;
-                if (firstErrorTab === null) {
+                if (firstErrorTab === null || tabIndex < firstErrorTab) {
                     firstErrorTab = tabIndex;
                 }
             }
@@ -524,7 +613,15 @@ function App() {
     setActiveTab(0);
     setEditingReportId(undefined);
     window.scrollTo(0, 0);
+
+    // The submit button will now show the success state.
+    setIsSuccess(true);
     setIsSubmitting(false);
+
+    // Revert the button back to its normal state after a delay.
+    setTimeout(() => {
+        setIsSuccess(false);
+    }, 1500); // Display success for 1.5 seconds.
   };
 
   const handleLoadReport = (id: string) => {
@@ -532,8 +629,8 @@ function App() {
     const isDraftDirty = draftData && draftData !== JSON.stringify(getDefaultFormData());
 
     if (isDraftDirty && formData.id !== id) {
-       const isConfirmed = window.confirm("Você tem certeza que deseja carregar este relatório? O rascunho atual será perdido.");
-       if (!isConfirmed) return;
+       setIsCancelEditModalOpen(true);
+       return;
     }
 
     const reportToLoad = history.find(report => report.id === id);
@@ -566,7 +663,7 @@ function App() {
 
   const handleSaveDraft = () => {
     localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(formData));
-    setToast({ message: 'Rascunho salvo com sucesso!', type: 'info' });
+    setToast({ message: 'Rascunho salvo com sucesso!', type: 'success' });
   };
 
   const handleDeleteReport = (id: string) => {
@@ -775,8 +872,14 @@ function App() {
       });
       
       const text = response.text.trim();
-      const result = JSON.parse(text) as GeminiAnalysisResult;
-      setGeminiResult(result);
+      try {
+        const result = JSON.parse(text) as GeminiAnalysisResult;
+        setGeminiResult(result);
+      } catch (parseError) {
+        console.error("Falha ao analisar o JSON da IA:", parseError);
+        console.error("Texto recebido:", text);
+        throw new Error("Formato de resposta da IA inválido.");
+      }
 
     } catch (error) {
       console.error("Erro na API do Gemini:", error);
@@ -786,6 +889,8 @@ function App() {
               errorMessage = "A chave de API configurada não é válida. Verifique a configuração do ambiente.";
           } else if (error.message.includes('fetch')) {
               errorMessage = "Erro de rede ao contatar a IA. Verifique sua conexão com a internet.";
+          } else if (error.message.includes('Formato de resposta da IA inválido')) {
+              errorMessage = "A IA retornou uma resposta em um formato inesperado. Por favor, tente novamente.";
           }
       }
       setGeminiError(errorMessage);
@@ -852,10 +957,7 @@ function App() {
                         <p>Você está editando o relatório de <strong>{formData.studentName}</strong>.</p>
                       </div>
                       <button 
-                        onClick={() => {
-                            const isConfirmed = window.confirm("Você tem certeza que deseja cancelar a edição? Todas as alterações não salvas serão perdidas.");
-                            if (isConfirmed) confirmClear();
-                        }}
+                        onClick={() => setIsCancelEditModalOpen(true)}
                         className="px-3 py-1.5 text-sm font-medium text-blue-800 bg-blue-200 rounded-md hover:bg-blue-300"
                       >
                         Cancelar Edição
@@ -894,7 +996,7 @@ function App() {
                     </nav>
                   </div>
 
-                  <div className="min-h-[400px]">
+                  <div id="tab-content-wrapper" className="min-h-[400px]">
                     {renderTabContent()}
                   </div>
 
@@ -923,11 +1025,7 @@ function App() {
 
                     <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
                       <div className="flex-grow">
-                          {autoSaveMessage && (
-                              <p className="text-sm text-gray-500 transition-opacity duration-500 animate-fade-in" role="status">
-                                  {autoSaveMessage}
-                              </p>
-                          )}
+                        {/* Auto-save message is now a toast notification */}
                       </div>
 
                       <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
@@ -961,8 +1059,12 @@ function App() {
                           ) : (
                             <button
                               type="submit"
-                              disabled={isSubmitting}
-                              className="w-full sm:w-auto px-6 py-3 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition flex items-center justify-center disabled:bg-emerald-400 disabled:cursor-not-allowed"
+                              disabled={isSubmitting || isSuccess}
+                              className={`w-full sm:w-auto px-6 py-3 border border-transparent rounded-md shadow-sm text-base font-medium text-white transition flex items-center justify-center disabled:cursor-not-allowed ${
+                                isSuccess
+                                  ? 'bg-green-500'
+                                  : 'bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400'
+                              } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500`}
                             >
                               {isSubmitting ? (
                                 <>
@@ -971,6 +1073,13 @@ function App() {
                                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                   </svg>
                                   <span>{editingReportId ? 'Atualizando...' : 'Registrando...'}</span>
+                                </>
+                              ) : isSuccess ? (
+                                <>
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                  </svg>
+                                  <span>Sucesso!</span>
                                 </>
                               ) : (
                                 submitButtonText
@@ -1032,6 +1141,16 @@ function App() {
       >
         Você tem certeza que deseja limpar todos os campos do formulário? 
         O rascunho salvo será perdido.
+      </ConfirmationModal>
+      <ConfirmationModal
+        isOpen={isCancelEditModalOpen}
+        onClose={() => setIsCancelEditModalOpen(false)}
+        onConfirm={confirmClear}
+        title="Cancelar Edição"
+        confirmText="Sim, Cancelar Edição"
+        variant="danger"
+      >
+        Você tem certeza que deseja cancelar a edição? Todas as alterações não salvas serão perdidas.
       </ConfirmationModal>
       <GeminiAnalysisModal
         isOpen={isGeminiModalOpen}
