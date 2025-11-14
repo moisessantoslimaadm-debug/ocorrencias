@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import type { OccurrenceReport, SavedReport, ReportImage, GeminiAnalysisResult, Modification, FormErrors, ReportStatus } from './types';
 import { DRAFT_STORAGE_KEY, HISTORY_STORAGE_KEY, AUTH_SESSION_KEY, occurrenceTypeLabels, severityOptions } from './constants';
 
@@ -740,18 +740,9 @@ function App() {
         .join(', ');
       
       const prompt = `
-        Analise a seguinte ocorrência escolar:
-
+        Analise a seguinte ocorrência escolar e forneça um resumo, ações imediatas, encaminhamentos e uma classificação de gravidade.
         Tipos de Ocorrência Marcados: ${checkedTypes || 'Nenhum'}
         Descrição do Fato: ${formData.detailedDescription}
-
-        Por favor, retorne um objeto JSON com a seguinte estrutura, sem nenhum texto adicional ou formatação:
-        {
-          "summary": "Um resumo conciso do incidente em 2-3 frases.",
-          "immediateActions": "Uma lista de 3 a 5 sugestões de ações imediatas que a escola pode tomar, formatada como um único parágrafo com itens separados por ponto e vírgula.",
-          "referrals": "Uma lista de 2 a 4 sugestões de encaminhamentos (para conselho tutelar, psicólogo, etc.), formatada como um único parágrafo com itens separados por ponto e vírgula.",
-          "severity": "Uma classificação da gravidade do incidente como 'Leve', 'Moderada' ou 'Grave'."
-        }
       `;
       
       const response = await ai.models.generateContent({
@@ -759,6 +750,27 @@ function App() {
           contents: prompt,
           config: {
               responseMimeType: "application/json",
+              responseSchema: {
+                type: Type.OBJECT,
+                properties: {
+                  summary: {
+                    type: Type.STRING,
+                    description: "Um resumo conciso do incidente em 2-3 frases.",
+                  },
+                  immediateActions: {
+                    type: Type.STRING,
+                    description: "Uma lista de 3 a 5 sugestões de ações imediatas que a escola pode tomar, formatada como um único parágrafo com itens separados por ponto e vírgula.",
+                  },
+                  referrals: {
+                    type: Type.STRING,
+                    description: "Uma lista de 2 a 4 sugestões de encaminhamentos (para conselho tutelar, psicólogo, etc.), formatada como um único parágrafo com itens separados por ponto e vírgula.",
+                  },
+                  severity: {
+                    type: Type.STRING,
+                    description: "Uma classificação da gravidade do incidente como 'Leve', 'Moderada' ou 'Grave'.",
+                  },
+                }
+              }
           }
       });
       
@@ -768,7 +780,15 @@ function App() {
 
     } catch (error) {
       console.error("Erro na API do Gemini:", error);
-      setGeminiError("Não foi possível obter a análise da IA. Verifique sua conexão ou a chave de API e tente novamente.");
+      let errorMessage = "Não foi possível obter a análise da IA. Verifique sua conexão e tente novamente.";
+      if (error instanceof Error) {
+          if (error.message.includes('API key not valid')) {
+              errorMessage = "A chave de API configurada não é válida. Verifique a configuração do ambiente.";
+          } else if (error.message.includes('fetch')) {
+              errorMessage = "Erro de rede ao contatar a IA. Verifique sua conexão com a internet.";
+          }
+      }
+      setGeminiError(errorMessage);
     } finally {
       setIsAnalyzing(false);
     }
