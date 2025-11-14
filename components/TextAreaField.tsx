@@ -12,9 +12,10 @@ interface TextAreaFieldProps {
   subtitle?: string;
   error?: string;
   maxLength?: number;
+  tooltip?: React.ReactNode;
 }
 
-const TextAreaField: React.FC<TextAreaFieldProps> = ({ id, name, label, value, onChange, placeholder, rows = 4, subtitle, error, maxLength }) => {
+const TextAreaField: React.FC<TextAreaFieldProps> = ({ id, name, label, value, onChange, placeholder, rows = 4, subtitle, error, maxLength, tooltip }) => {
   const validationClasses = error
     ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
     : 'border-gray-300 focus:ring-emerald-500 focus:border-emerald-500';
@@ -24,10 +25,13 @@ const TextAreaField: React.FC<TextAreaFieldProps> = ({ id, name, label, value, o
 
   return (
     <div className="flex flex-col w-full">
-      <div className="flex justify-between items-baseline">
-        <div>
-            <label htmlFor={id} className="mb-1 text-sm font-medium text-gray-700">{label}</label>
-            {subtitle && <p className="text-xs text-gray-500 mb-1">{subtitle}</p>}
+      <div className="flex justify-between items-start">
+        <div className="flex items-center gap-1.5">
+            <div>
+                <label htmlFor={id} className="mb-1 text-sm font-medium text-gray-700">{label}</label>
+                {subtitle && <p className="text-xs text-gray-500 mb-1">{subtitle}</p>}
+            </div>
+            {tooltip}
         </div>
         {maxLength && (
             <p className="text-xs text-gray-500 mb-1">

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import type { OccurrenceReport, FormErrors } from '../../types';
 import SectionHeader from '../SectionHeader';
@@ -5,6 +6,7 @@ import InputField from '../InputField';
 import TextAreaField from '../TextAreaField';
 import SelectField from '../SelectField';
 import { occurrenceTypeLabels, severityOptions } from '../../constants';
+import Tooltip from '../Tooltip';
 
 interface TabOcorrenciaProps {
   formData: OccurrenceReport;
@@ -21,8 +23,8 @@ const TabOcorrencia: React.FC<TabOcorrenciaProps> = ({ formData, handleChange, o
         <SectionHeader title="3. CARACTERIZAÇÃO DA OCORRÊNCIA" />
         <div className="bg-white p-4 rounded-b-md border border-t-0 border-gray-200 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <InputField id="occurrenceDateTime" name="occurrenceDateTime" label="Data e hora da ocorrência" type="datetime-local" value={formData.occurrenceDateTime} onChange={handleChange} error={errors.occurrenceDateTime} />
-            <InputField id="occurrenceLocation" name="occurrenceLocation" label="Local onde ocorreu" type="text" value={formData.occurrenceLocation} onChange={handleChange} error={errors.occurrenceLocation} />
+            <InputField id="occurrenceDateTime" name="occurrenceDateTime" label="Data e hora da ocorrência" type="datetime-local" value={formData.occurrenceDateTime} onChange={handleChange} error={errors.occurrenceDateTime} tooltip={<Tooltip text="Selecione a data e a hora exatas em que o fato ocorreu." />} />
+            <InputField id="occurrenceLocation" name="occurrenceLocation" label="Local onde ocorreu" type="text" value={formData.occurrenceLocation} onChange={handleChange} error={errors.occurrenceLocation} tooltip={<Tooltip text="Local específico onde a ocorrência aconteceu. Ex: Pátio, Sala 10, Banheiro masculino." />} />
             <SelectField 
               id="occurrenceSeverity" 
               name="occurrenceSeverity" 
@@ -52,7 +54,7 @@ const TabOcorrencia: React.FC<TabOcorrenciaProps> = ({ formData, handleChange, o
               ))}
             </div>
             {formData.occurrenceTypes.other && (
-              <InputField id="occurrenceOtherDescription" name="occurrenceOtherDescription" label="Especifique 'Outros'" type="text" value={formData.occurrenceOtherDescription} onChange={handleChange} className="mt-2" error={errors.occurrenceOtherDescription} />
+              <InputField id="occurrenceOtherDescription" name="occurrenceOtherDescription" label="Especifique 'Outros'" type="text" value={formData.occurrenceOtherDescription} onChange={handleChange} className="mt-2" error={errors.occurrenceOtherDescription} tooltip={<Tooltip text="Descreva brevemente o tipo de ocorrência, se 'Outros' foi selecionado." />} />
             )}
           </div>
         </div>
@@ -79,7 +81,7 @@ const TabOcorrencia: React.FC<TabOcorrenciaProps> = ({ formData, handleChange, o
               <span>{isAnalyzing ? 'Analisando...' : 'Analisar com IA'}</span>
             </button>
           </div>
-          <TextAreaField id="detailedDescription" name="detailedDescription" label="" subtitle="Relatar de forma objetiva, com sequência cronológica dos acontecimentos." value={formData.detailedDescription} onChange={handleChange} rows={6} error={errors.detailedDescription} maxLength={2000} />
+          <TextAreaField id="detailedDescription" name="detailedDescription" label="" subtitle="Relatar de forma objetiva, com sequência cronológica dos acontecimentos." value={formData.detailedDescription} onChange={handleChange} rows={6} error={errors.detailedDescription} maxLength={2000} tooltip={<Tooltip text="Descreva o fato com o máximo de detalhes possível, de forma objetiva e imparcial. O que aconteceu? Quem estava envolvido? Como começou? Qual foi o desfecho?" />} />
         </div>
     </div>
   );

@@ -22,6 +22,7 @@ import GeminiAnalysisModal from './components/GeminiAnalysisModal';
 import ApiKeyModal from './components/ApiKeyModal';
 import { seedData } from './data/seedData';
 import Dropdown from './components/Dropdown';
+import FloatingActionButton from './components/FloatingActionButton';
 
 // Add type declarations for CDN scripts
 declare global {
@@ -266,6 +267,10 @@ function App() {
   // New state for view management
   const [view, setView] = useState<'dashboard' | 'form'>('dashboard');
   const [isHistoryPanelOpen, setIsHistoryPanelOpen] = useState(false);
+
+  // New state for load confirmation flow
+  const [isLoadConfirmModalOpen, setIsLoadConfirmModalOpen] = useState(false);
+  const [reportToLoadId, setReportToLoadId] = useState<string | null>(null);
 
 
   // Gemini AI State
@@ -711,16 +716,8 @@ function App() {
         setIsSuccess(false);
     }, 1000); // Display success for 1 second.
   };
-
-  const handleLoadReport = (id: string) => {
-    const draftData = localStorage.getItem(DRAFT_STORAGE_KEY);
-    const isDraftDirty = draftData && draftData !== JSON.stringify(getDefaultFormData());
-
-    if (isDraftDirty && formData.id !== id) {
-       setIsCancelEditModalOpen(true);
-       return;
-    }
-
+  
+  const executeLoad = (id: string) => {
     const reportToLoad = history.find(report => report.id === id);
     if (reportToLoad) {
         const currentDate = new Date().toISOString().split('T')[0];
@@ -749,6 +746,29 @@ function App() {
         setIsHistoryPanelOpen(false); // Close panel on load
         window.scrollTo(0, 0);
     }
+  };
+
+  const handleLoadReport = (id: string) => {
+    const defaultDataString = JSON.stringify(getDefaultFormData());
+    const currentDataString = JSON.stringify(formData);
+    const isDirty = currentDataString !== defaultDataString;
+    const isLoadingDifferentReport = formData.id !== id;
+
+    if (isDirty && isLoadingDifferentReport) {
+       setReportToLoadId(id);
+       setIsLoadConfirmModalOpen(true);
+       return;
+    }
+
+    executeLoad(id);
+  };
+  
+  const confirmDiscardAndLoad = () => {
+    if (reportToLoadId) {
+        executeLoad(reportToLoadId);
+    }
+    setIsLoadConfirmModalOpen(false);
+    setReportToLoadId(null);
   };
 
   const handleSaveDraft = () => {
@@ -1330,6 +1350,19 @@ function App() {
       >
         Você tem certeza que deseja descartar as alterações não salvas?
       </ConfirmationModal>
+      <ConfirmationModal
+        isOpen={isLoadConfirmModalOpen}
+        onClose={() => {
+            setIsLoadConfirmModalOpen(false);
+            setReportToLoadId(null);
+        }}
+        onConfirm={confirmDiscardAndLoad}
+        title="Carregar Relatório"
+        confirmText="Descartar e Carregar"
+        variant="danger"
+      >
+        Você possui alterações não salvas no formulário atual. Deseja descartar essas alterações e carregar o relatório selecionado?
+      </ConfirmationModal>
       <GeminiAnalysisModal
         isOpen={isGeminiModalOpen}
         onClose={() => setIsGeminiModalOpen(false)}
@@ -1344,6 +1377,16 @@ function App() {
         onSave={handleSaveApiKey}
         currentApiKey={apiKey}
       />
+      {view === 'form' && (
+          <FloatingActionButton
+            onNewReport={handleNewReport}
+            onSaveDraft={handleSaveDraft}
+            onDownloadPdf={handleDownloadPdf}
+            onExportExcel={handleExportExcel}
+            showExportOptions={showExportOptions}
+            editingReportId={editingReportId}
+          />
+        )}
       <style>{`
         @keyframes fade-in {
           from { opacity: 0; }

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 
 interface AutocompleteFieldProps {
@@ -10,6 +11,7 @@ interface AutocompleteFieldProps {
   placeholder?: string;
   className?: string;
   error?: string;
+  tooltip?: React.ReactNode;
 }
 
 const AutocompleteField: React.FC<AutocompleteFieldProps> = ({
@@ -22,6 +24,7 @@ const AutocompleteField: React.FC<AutocompleteFieldProps> = ({
   placeholder,
   className = '',
   error,
+  tooltip,
 }) => {
   const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -95,7 +98,10 @@ const AutocompleteField: React.FC<AutocompleteFieldProps> = ({
 
   return (
     <div className={`flex flex-col relative ${className}`} ref={componentRef}>
-      <label htmlFor={id} className="mb-1 text-sm font-medium text-gray-700">{label}</label>
+      <div className="flex items-center gap-1.5">
+        <label htmlFor={id} className="mb-1 text-sm font-medium text-gray-700">{label}</label>
+        {tooltip}
+      </div>
       <input
         type="text"
         id={id}
