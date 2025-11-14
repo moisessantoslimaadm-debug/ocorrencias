@@ -302,9 +302,9 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
     setJustLoadedReportId(id);
     setTimeout(() => setJustLoadedReportId(null), 1500); // Highlight for 1.5 seconds
   };
-
-  const handleExportExcel = () => {
-    if (filteredReports.length === 0) return;
+  
+  const createExcelExport = (dataToExport: SavedReport[], filename: string) => {
+    if (dataToExport.length === 0) return;
     if (!window.XLSX) {
         onSetToast({ message: 'A biblioteca de exportação ainda não carregou. Tente novamente em um instante.', type: 'error' });
         return;
@@ -317,7 +317,7 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
       "Descrição Detalhada", "Tipos de Ocorrência"
     ];
 
-    const data = filteredReports.map(r => {
+    const data = dataToExport.map(r => {
         const checkedTypes = Object.entries(r.occurrenceTypes)
             .filter(([, isChecked]) => isChecked)
             .map(([key]) => occurrenceTypeLabelsMap[key] || key)
@@ -337,7 +337,7 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
 
     const colWidths = headers.map((_, i) => {
         const maxLength = Math.max(...worksheetData.map(row => (row[i] ? String(row[i]).length : 0)));
-        return { wch: Math.min(maxLength + 2, 60) }; // Add padding, max width 60
+        return { wch: Math.min(maxLength + 2, 60) };
     });
     worksheet['!cols'] = colWidths;
 
@@ -351,7 +351,15 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
 
     const workbook = window.XLSX.utils.book_new();
     window.XLSX.utils.book_append_sheet(workbook, worksheet, 'Histórico de Ocorrências');
-    window.XLSX.writeFile(workbook, 'historico_ocorrencias.xlsx');
+    window.XLSX.writeFile(workbook, `${filename}.xlsx`);
+  }
+
+  const handleExportFilteredExcel = () => {
+    createExcelExport(filteredReports, 'historico_filtrado_ocorrencias');
+  };
+
+  const handleExportAllExcel = () => {
+    createExcelExport(reports, 'historico_completo_ocorrencias');
   };
   
   const handleExportJson = () => {
@@ -470,163 +478,150 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
                     {isAnalyzingTrends ? (
                         <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                     ) : (
-                        <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9.622 3.203a.75.75 0 01.756 0l1.25 1.25a.75.75 0 010 1.06l-1.25 1.25a.75.75 0 01-1.06 0l-1.25-1.25a.75.75 0 010-1.06l1.25-1.25zM12.5 6.5a.75.75 0 00-1.06 0l-1.25 1.25a.75.75 0 000 1.06l1.25 1.25a.75.75 0 001.06 0l1.25-1.25a.75.75 0 000-1.06L12.5 6.5zM5.378 8.203a.75.75 0 01.756 0l1.25 1.25a.75.75 0 010 1.06l-1.25 1.25a.75.75 0 01-1.06 0L4.122 10.51a.75.75 0 010-1.06l1.25-1.25zM10 11.25a.75.75 0 00-1.06 0l-1.25 1.25a.75.75 0 000 1.06l1.25 1.25a.75.75 0 001.06 0l1.25-1.25a.75.75 0 000-1.06L10 11.25z" clipRule="evenodd" /></svg>
+                        <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M10 3.5a1.5 1.5 0 01.52 2.915l.385.21a2.5 2.5 0 002.185.022l.385-.21a1.5 1.5 0 011.96.615l.298.518a1.5 1.5 0 01-.065 1.701l-.21.385a2.5 2.5 0 000 2.186l.21.385a1.5 1.5 0 01.065 1.701l-.298.518a1.5 1.5 0 01-1.96.615l-.385-.21a2.5 2.5 0 00-2.185.022l-.385.21A1.5 1.5 0 0110 16.5a1.5 1.5 0 01-1.52-2.915l-.385-.21a2.5 2.5 0 00-2.185-.022l-.385.21a1.5 1.5 0 01-1.96-.615l-.298-.518a1.5 1.5 0 01.065-1.701l.21-.385a2.5 2.5 0 000-2.186l-.21-.385a1.5 1.5 0 01-.065-1.701l.298-.518a1.5 1.5 0 011.96-.615l.385.21a2.5 2.5 0 002.185-.022l.385-.21A1.5 1.5 0 0110 3.5zM6 10a4 4 0 118 0 4 4 0 01-8 0z" /></svg>
                     )}
-                    <span>{isAnalyzingTrends ? 'Analisando...' : 'Analisar Tendências com IA'}</span>
+                    <span>Analisar Tendências</span>
                 </button>
-                <MonthlyChart reports={reports} />
-                <OccurrenceChart reports={reports} />
                 <SeverityDonutChart reports={reports} />
+                <OccurrenceChart reports={reports} />
+                <MonthlyChart reports={reports} />
             </div>
           </Accordion>
-
-          <Accordion title="Filtrar Relatórios">
-              <div className="space-y-3">
-                <div>
-                  <label htmlFor="search-report" className="text-sm font-medium text-gray-600 mb-1 block">Pesquisar Relatórios:</label>
-                  <form onSubmit={(e) => { e.preventDefault(); handleSearchSubmit(searchTerm); }}>
-                    <div className="relative">
-                        <input
-                            type="text"
-                            id="search-report"
-                            placeholder="Digite o nome do aluno..."
-                            value={searchTerm}
-                            onChange={handleSearchChange}
-                            className="w-full p-2 pl-3 pr-10 border border-gray-300 rounded-md shadow-sm text-sm focus:ring-emerald-500 focus:border-emerald-500"
-                        />
-                        <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                            {isAiSearching ? (
-                                <svg className="animate-spin h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                </svg>
-                            ) : (
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-                            )}
-                        </div>
-                    </div>
-                  </form>
-                   <p className="text-xs text-gray-500 mt-1">Busca por nome ou <button onClick={() => handleSearchSubmit(searchTerm)} className="text-emerald-600 hover:underline disabled:text-gray-400" disabled={!searchTerm || isAiSearching}>usar IA para busca avançada</button>.</p>
-                   {recentSearches.length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-1.5">
-                            <span className="text-xs text-gray-500 mr-1">Recentes:</span>
+          <Accordion title="Filtros e Busca">
+            <div className="space-y-4">
+                <div className="relative">
+                    <input
+                        type="text"
+                        placeholder="Busca com IA (ex: 'casos de bullying em maio')"
+                        value={searchTerm}
+                        onChange={handleSearchChange}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleSearchSubmit(searchTerm); }}
+                        className="w-full pl-3 pr-10 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
+                    />
+                    <button onClick={() => handleSearchSubmit(searchTerm)} disabled={isAiSearching} className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-500 hover:text-emerald-600 disabled:cursor-not-allowed">
+                        {isAiSearching ? (
+                             <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                        ) : (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" /></svg>
+                        )}
+                    </button>
+                </div>
+                 {recentSearches.length > 0 && (
+                    <div>
+                        <p className="text-xs text-gray-500 mb-1">Buscas recentes:</p>
+                        <div className="flex flex-wrap gap-1.5">
                             {recentSearches.map(term => (
-                                <button key={term} onClick={() => handleRecentSearchClick(term)} className="px-2 py-0.5 text-xs text-emerald-800 bg-emerald-100 rounded-full hover:bg-emerald-200">
+                                <button
+                                    key={term}
+                                    onClick={() => handleRecentSearchClick(term)}
+                                    className="px-2 py-0.5 text-xs bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300"
+                                >
                                     {term}
                                 </button>
                             ))}
                         </div>
-                   )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label htmlFor="start-date" className="text-sm font-medium text-gray-600 mb-1 block">Data de Início:</label>
-                    <input type="date" id="start-date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full p-1.5 border border-gray-300 rounded-md text-sm focus:ring-emerald-500 focus:border-emerald-500" />
-                  </div>
-                  <div>
-                    <label htmlFor="end-date" className="text-sm font-medium text-gray-600 mb-1 block">Data de Fim:</label>
-                    <input type="date" id="end-date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full p-1.5 border border-gray-300 rounded-md text-sm focus:ring-emerald-500 focus:border-emerald-500" />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                    <div>
-                        <label htmlFor="severity-filter" className="text-sm font-medium text-gray-600 mb-1 block">Gravidade:</label>
-                        <select id="severity-filter" value={severityFilter} onChange={e => setSeverityFilter(e.target.value)} className="w-full p-1.5 border border-gray-300 rounded-md text-sm focus:ring-emerald-500 focus:border-emerald-500">
-                            <option value="">Todas</option>
-                            {severityOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                        </select>
                     </div>
-                     <div>
-                        <label htmlFor="status-filter" className="text-sm font-medium text-gray-600 mb-1 block">Status:</label>
-                        <select id="status-filter" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="w-full p-1.5 border border-gray-300 rounded-md text-sm focus:ring-emerald-500 focus:border-emerald-500">
-                            <option value="">Todos</option>
+                 )}
+
+                <div className="grid grid-cols-2 gap-2">
+                    <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md" aria-label="Data de início"/>
+                    <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md" aria-label="Data de fim"/>
+                </div>
+                <select value={severityFilter} onChange={e => setSeverityFilter(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md">
+                    <option value="">Toda Gravidade</option>
+                    {severityOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                </select>
+                <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="w-full p-2 border border-gray-300 rounded-md">
+                    <option value="">Todo Status</option>
+                    {statusOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                </select>
+                {hasActiveFilters && (
+                    <button onClick={handleClearFilters} className="w-full text-sm text-center text-red-600 hover:underline">
+                        Limpar Filtros
+                    </button>
+                )}
+            </div>
+          </Accordion>
+          <Accordion title="Relatórios" defaultOpen>
+            {isAiSearching && (
+                <div className="text-center p-4 text-gray-600">
+                    <p>Buscando com IA...</p>
+                </div>
+            )}
+            {aiFilteredIds !== null && (
+                 <div className="bg-emerald-50 text-emerald-800 text-sm p-3 rounded-md mb-3">
+                    Exibindo {aiFilteredIds.length} resultado(s) da busca com IA.
+                 </div>
+            )}
+
+            {filteredReports.length > 0 ? (
+                <ul className="space-y-2">
+                {filteredReports.map(report => (
+                    <li key={report.id} className={`p-2 rounded-md transition-all ${currentReportId === report.id ? 'bg-emerald-100 border-l-4 border-emerald-500' : 'bg-transparent'} ${justLoadedReportId === report.id ? 'animate-pulse-once' : ''}`}>
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <p className="font-semibold text-gray-800">{report.studentName}</p>
+                            <p className="text-xs text-gray-500">
+                                {new Date(report.occurrenceDateTime).toLocaleDateString('pt-BR')} &middot; {getOccurrenceSummary(report.occurrenceTypes)}
+                            </p>
+                        </div>
+                        <select 
+                            value={report.status}
+                            onChange={(e) => onStatusChange(report.id, e.target.value as ReportStatus)}
+                            className={`text-xs p-1 border-0 rounded-md focus:ring-2 focus:ring-emerald-400 ${getStatusBadge(report.status)}`}
+                            onClick={(e) => e.stopPropagation()} // Prevent card click
+                        >
                             {statusOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                         </select>
                     </div>
-                </div>
-                 {hasActiveFilters && (
-                    <button onClick={handleClearFilters} className="text-sm text-emerald-600 hover:underline">Limpar filtros</button>
-                )}
-              </div>
-          </Accordion>
-          
-          <div className="flex justify-between items-center text-sm mb-2">
-            <span className="font-semibold text-gray-700">
-                {filteredReports.length} de {reports.length} relatórios
-            </span>
-            <div className="flex gap-2">
-                <button onClick={handleExportExcel} title="Exportar para Excel (XLSX)" disabled={filteredReports.length === 0} className="text-gray-500 hover:text-emerald-600 disabled:text-gray-300 disabled:cursor-not-allowed">
-                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M21.17 3.25Q21.5 3.25 21.76 3.5 22 3.74 22 4.08V19.92Q22 20.26 21.76 20.5 21.5 20.75 21.17 20.75H7.83Q7.5 20.75 7.24 20.5 7 20.26 7 19.92V17H2.83Q2.5 17 2.24 16.76 2 16.5 2 16.17V7.83Q2 7.5 2.24 7.24 2.5 7 2.83 7H7V4.08Q7 3.74 7.24 3.5 7.5 3.25 7.83 3.25M7 15.5V8.5H3.5V15.5M12.21 6.21 14.53 10.41 16.85 6.21H18.93L15.5 12.04L19 17.79H16.9L14.53 13.5L12.15 17.79H10.1L13.56 12L10.1 6.21Z" /></svg>
-                </button>
-                 <button onClick={handleExportJson} title="Exportar Backup (JSON)" disabled={reports.length === 0} className="text-gray-500 hover:text-blue-600 disabled:text-gray-300 disabled:cursor-not-allowed">
-                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 2a1 1 0 00-1 1v1a1 1 0 002 0V3a1 1 0 00-1-1zM4 5a1 1 0 011-1h1a1 1 0 010 2H5a1 1 0 01-1-1zm12 0a1 1 0 00-1 1h-1a1 1 0 100 2h1a1 1 0 001-1zM4.707 8.707a1 1 0 00-1.414 0l-1 1a1 1 0 101.414 1.414l1-1a1 1 0 000-1.414zM16.707 9.707a1 1 0 00-1.414-1.414l-1 1a1 1 0 101.414 1.414l1-1zM10 16a1 1 0 100 2 1 1 0 000-2zM4.293 15.293a1 1 0 10-1.414-1.414l-1 1a1 1 0 101.414 1.414l1-1zM16.707 13.879a1 1 0 10-1.414 1.414l1 1a1 1 0 101.414-1.414l-1-1z" clipRule="evenodd" /></svg>
-                </button>
-                 <button onClick={handleImportClick} title="Importar Backup (JSON)" className="text-gray-500 hover:text-purple-600">
-                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 10a.75.75 0 01.75-.75h10.638L10.23 5.29a.75.75 0 111.04-1.08l5.5 5.25a.75.75 0 010 1.08l-5.5 5.25a.75.75 0 11-1.04-1.08l4.158-3.96H3.75A.75.75 0 013 10z" clipRule="evenodd" /></svg>
-                </button>
-            </div>
-          </div>
-          
-          <ul className="space-y-2">
-            {filteredReports.length > 0 ? (
-                filteredReports.map(report => (
-                <li key={report.id}>
-                    <div className={`
-                        p-3 rounded-lg border 
-                        ${currentReportId === report.id ? 'bg-emerald-100 border-emerald-300' : 'bg-white border-gray-200'}
-                        ${justLoadedReportId === report.id ? 'animate-pulse-bg-emerald' : ''}
-                    `}>
-                        <div className="flex justify-between items-start gap-2">
-                            <div>
-                                <p className="font-semibold text-gray-800">{report.studentName}</p>
-                                <p className="text-xs text-gray-500">
-                                    {new Date(report.savedAt).toLocaleDateString('pt-BR')} &middot; {getOccurrenceSummary(report.occurrenceTypes)}
-                                </p>
-                            </div>
-                            <div className="flex-shrink-0 flex flex-col items-end gap-1">
-                                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${getSeverityBadge(report.occurrenceSeverity)}`}>
-                                    {report.occurrenceSeverity || 'N/D'}
-                                </span>
-                                 <select 
-                                    value={report.status} 
-                                    onChange={(e) => onStatusChange(report.id, e.target.value as ReportStatus)}
-                                    className={`text-xs font-medium px-2 py-0.5 rounded-full border-none appearance-none ${getStatusBadge(report.status)}`}
-                                    onClick={(e) => e.stopPropagation()}
-                                >
-                                    {statusOptions.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
-                                </select>
-                            </div>
-                        </div>
-
-                        {isReportIncomplete(report) && (
-                            <p className="mt-2 text-xs text-yellow-700 bg-yellow-100 p-1.5 rounded flex items-center gap-1">
-                               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M8.257 3.099c.636-1.21 2.37-1.21 3.006 0l4.33 8.24c.636 1.21-.24 2.66-1.503 2.66H5.43c-1.263 0-2.139-1.45-1.503-2.66l4.33-8.24zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 8a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /></svg>
-                                <span>Relatório incompleto.</span>
-                            </p>
-                        )}
-
-                        <div className="mt-3 flex gap-2">
-                            <button onClick={() => handleLoadAndHighlight(report.id)} className="px-3 py-1 text-sm font-medium text-emerald-700 bg-emerald-100 rounded-md hover:bg-emerald-200">
-                                {currentReportId === report.id ? 'Editando' : 'Carregar'}
+                    <div className="flex items-center justify-between mt-2">
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${getSeverityBadge(report.occurrenceSeverity)}`}>
+                            {report.occurrenceSeverity || 'N/D'}
+                        </span>
+                        <div className="flex gap-2">
+                            <button onClick={() => handleLoadAndHighlight(report.id)} className="text-sm font-medium text-emerald-600 hover:underline" disabled={currentReportId === report.id}>
+                                {currentReportId === report.id ? 'Editando' : 'Editar'}
                             </button>
-                            <button onClick={() => onDeleteReport(report.id)} className="px-3 py-1 text-sm font-medium text-red-700 bg-red-100 rounded-md hover:bg-red-200">
+                            <button onClick={() => onDeleteReport(report.id)} className="text-sm font-medium text-red-600 hover:underline">
                                 Excluir
                             </button>
                         </div>
                     </div>
-                </li>
-                ))
+                    {isReportIncomplete(report) && (
+                        <div className="mt-2 text-xs text-yellow-700 bg-yellow-50 p-1.5 rounded flex items-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M8.257 3.099c.636-1.21 2.242-1.21 2.878 0l5.394 10.273c.636 1.21-.242 2.77-1.636 2.77H4.499c-1.394 0-2.272-1.56-1.636-2.77L8.257 3.099zM10 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" /></svg>
+                            <span>Relatório incompleto.</span>
+                        </div>
+                    )}
+                    </li>
+                ))}
+                </ul>
             ) : (
-                <div className="text-center text-gray-500 py-10">
-                    <p className="font-semibold">Nenhum relatório encontrado</p>
-                    <p className="text-sm mt-1">
-                        {aiFilteredIds !== null ? "A busca com IA não retornou resultados." : "Ajuste os filtros ou limpe-os para ver todos os relatórios."}
-                    </p>
+                <div className="text-center p-4 text-gray-500">
+                    <p>{hasActiveFilters ? "Nenhum relatório encontrado com os filtros aplicados." : "Nenhum relatório no histórico."}</p>
                 </div>
             )}
-          </ul>
+          </Accordion>
+        </div>
+        <div className="border-t pt-3 mt-4 flex flex-col sm:flex-row gap-2 justify-between flex-shrink-0">
+            <div className="flex gap-2">
+                <button onClick={handleImportClick} className="flex-1 sm:flex-auto flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+                    <span>Importar</span>
+                </button>
+                <button onClick={handleExportJson} disabled={reports.length === 0} className="flex-1 sm:flex-auto flex items-center justify-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                    <span>Exportar</span>
+                </button>
+            </div>
+             <div className="flex gap-2">
+                 <button onClick={handleExportFilteredExcel} disabled={filteredReports.length === 0} className="flex-1 text-xs text-center px-2 py-2 text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 disabled:opacity-50">
+                    Exportar Filtrados (.xlsx)
+                 </button>
+                 <button onClick={handleExportAllExcel} disabled={reports.length === 0} className="flex-1 text-xs text-center px-2 py-2 text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 disabled:opacity-50">
+                    Exportar Tudo (.xlsx)
+                 </button>
+            </div>
         </div>
       </div>
       <TrendAnalysisModal
@@ -639,5 +634,5 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
     </>
   );
 };
-// FIX: Add default export for the component
+
 export default HistoryPanel;

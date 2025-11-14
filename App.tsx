@@ -424,8 +424,8 @@ function App() {
     // Tab 0: Identification
     checkMaxLength('schoolUnit', 100, 'Unidade Escolar');
     checkMaxLength('municipality', 100, 'Município');
-    if (formData.uf && !/^[A-Za-z]{2}$/.test(formData.uf)) {
-        newErrors.uf = 'UF deve conter exatamente 2 letras.';
+    if (formData.uf && !/^[A-Z]{2}$/.test(formData.uf)) {
+        newErrors.uf = 'UF deve conter exatamente 2 letras maiúsculas.';
     }
     
     checkMaxLength('studentName', 150, 'Nome do aluno');
@@ -474,8 +474,8 @@ function App() {
         newErrors.occurrenceTypes = 'Selecione ao menos um tipo de ocorrência.';
     }
 
-    if(formData.occurrenceTypes.other && !formData.occurrenceOtherDescription) {
-        newErrors.occurrenceOtherDescription = "Especifique o tipo de ocorrência 'Outros'.";
+    if (formData.occurrenceTypes.other && !formData.occurrenceOtherDescription.trim()) {
+        newErrors.occurrenceOtherDescription = "Este campo deve ser preenchido pois a opção 'Outros' está marcada.";
     }
     checkMaxLength('occurrenceOtherDescription', 200, 'Descrição de "Outros"');
     checkMaxLength('detailedDescription', 2000, 'Descrição detalhada');
@@ -551,8 +551,16 @@ function App() {
     }
 
     setFormData(prev => {
-        const newState = { ...prev, [name]: value };
+        let finalValue = value;
+        // Auto-format UF to uppercase and limit length
+        if (name === 'uf') {
+          finalValue = value.toUpperCase().slice(0, 2);
+        }
+
+        const newState = { ...prev, [name]: finalValue };
+
         if (name === 'studentDob') {
+            // NOTE: use original `value` for age calculation, not finalValue
             newState.studentAge = calculateAge(value);
             if (new Date(value) > new Date()) {
                 setErrors(prevErrors => ({ ...prevErrors, studentDob: 'A data de nascimento não pode ser no futuro.' }));
