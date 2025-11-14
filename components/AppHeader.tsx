@@ -30,7 +30,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({ onLogout, onApiKeyClick, onNaviga
         </div>
         <div>
           <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Registro de Ocorrência Escolar</h1>
-          <p className="text-emerald-200 mt-1 text-sm sm:text-base">Plataforma Inteligente para Gestão</p>
+          <p className="text-emerald-200 mt-1 text-sm sm:text-base">Secretaria Municipal de Educação – Itaberaba/BA</p>
         </div>
       </div>
       <div className="flex items-center gap-2 sm:gap-3">

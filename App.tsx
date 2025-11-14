@@ -42,32 +42,32 @@ const TABS = [
 
 const validateAddress = (address: string): string => {
   const trimmedAddress = address.trim();
-  if (!trimmedAddress) return ''; // Not a required field, so no error if empty
+  // Not a required field, so no error if empty. But if user started typing, we validate.
+  if (!trimmedAddress) {
+    return '';
+  }
 
   const hasNumber = /\d/.test(trimmedAddress);
   const hasComma = /,/.test(trimmedAddress);
   const hasZipCode = /\d{5}-?\d{3}/.test(trimmedAddress);
   const hasUF = /(,|-|\s)\b[A-Z]{2}\b/i.test(trimmedAddress);
 
-
-  if (trimmedAddress.length > 0) {
-    if (trimmedAddress.length < 15) {
-      return 'Endereço muito curto. Forneça mais detalhes.';
-    }
-    if (!hasNumber) {
-      return 'Endereço inválido. O número da residência está faltando.';
-    }
-    if (!hasComma) {
-      return 'Endereço inválido. Use vírgulas para separar as partes (rua, bairro, etc.).';
-    }
-    if (!hasZipCode) {
-        return 'Endereço inválido. O CEP (ex: 12345-678) está faltando.';
-    }
-    if (!hasUF) {
-        return 'Endereço inválido. A sigla do estado (UF) está faltando.';
-    }
+  if (!hasNumber) {
+    return 'Endereço inválido. O número da residência está faltando.';
   }
-
+  if (!hasComma) {
+    return 'Endereço inválido. Use vírgulas para separar as partes (rua, bairro, etc.).';
+  }
+  if (!hasZipCode) {
+    return 'Endereço inválido. O CEP (ex: 12345-678) está faltando.';
+  }
+  if (!hasUF) {
+    return 'Endereço inválido. A sigla do estado (UF) está faltando.';
+  }
+  if (trimmedAddress.length < 15) {
+    return 'Endereço muito curto. Forneça mais detalhes.';
+  }
+  
   return '';
 };
 
@@ -263,6 +263,7 @@ function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [editingReportId, setEditingReportId] = useState<string | undefined>(formData.id);
+  const [validationSummary, setValidationSummary] = useState<string | null>(null);
   
   // New state for view management
   const [view, setView] = useState<'dashboard' | 'form'>('dashboard');
@@ -449,7 +450,7 @@ function App() {
     if (formData.guardianPhone && formData.guardianPhone.replace(/\D/g, '').length > 0) {
         const phoneDigits = formData.guardianPhone.replace(/\D/g, '');
         if (![10, 11].includes(phoneDigits.length)) {
-            newErrors.guardianPhone = 'Telefone inválido. Deve conter DDD + 8 ou 9 dígitos.';
+            newErrors.guardianPhone = 'O número de telefone deve ter 10 ou 11 dígitos, incluindo o DDD.';
         }
     }
     
@@ -512,7 +513,7 @@ function App() {
     if (name === 'guardianPhone') {
         const phoneDigits = value.replace(/\D/g, '');
         if (phoneDigits.length > 0 && ![10, 11].includes(phoneDigits.length)) {
-            setErrors(prev => ({ ...prev, guardianPhone: 'Telefone inválido. Deve conter DDD + 8 ou 9 dígitos.' }));
+            setErrors(prev => ({ ...prev, guardianPhone: 'O número de telefone deve ter 10 ou 11 dígitos, incluindo o DDD.' }));
         } else {
             setErrors(prev => ({ ...prev, guardianPhone: undefined }));
         }
@@ -535,6 +536,7 @@ function App() {
   }, [tabErrors]);
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    if (validationSummary) setValidationSummary(null);
     const { name, value } = e.target as { name: keyof OccurrenceReport, value: string };
     const fieldName = name as keyof FormErrors;
 
@@ -560,9 +562,10 @@ function App() {
         }
         return newState;
     });
-  }, [errors, clearTabError]);
+  }, [errors, clearTabError, validationSummary]);
 
   const handleAutocompleteChange = useCallback((name: keyof OccurrenceReport, value: string) => {
+      if (validationSummary) setValidationSummary(null);
       const fieldName = name as keyof FormErrors;
       if (errors[fieldName]) {
         setErrors(prev => ({ ...prev, [fieldName]: undefined }));
@@ -573,9 +576,10 @@ function App() {
           ...prev,
           [name]: value,
       }));
-  }, [errors, clearTabError]);
+  }, [errors, clearTabError, validationSummary]);
 
   const handleCheckboxChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    if (validationSummary) setValidationSummary(null);
     const { name, checked } = e.target as { name: keyof OccurrenceReport['occurrenceTypes'], checked: boolean };
     
     if(errors.occurrenceTypes) {
@@ -590,21 +594,23 @@ function App() {
         [name]: checked,
       },
     }));
-  }, [errors.occurrenceTypes, clearTabError]);
+  }, [errors.occurrenceTypes, clearTabError, validationSummary]);
 
   const handleImagesChange = useCallback((images: ReportImage[]) => {
+    if (validationSummary) setValidationSummary(null);
     setFormData(prev => ({
       ...prev,
       images,
     }));
-  }, []);
+  }, [validationSummary]);
   
   const handleStudentPhotoChange = useCallback((photo: ReportImage | null) => {
+    if (validationSummary) setValidationSummary(null);
     setFormData(prev => ({
       ...prev,
       studentPhoto: photo,
     }));
-  }, []);
+  }, [validationSummary]);
 
   const handleClear = () => {
     setIsClearModalOpen(true);
@@ -636,10 +642,12 @@ function App() {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setValidationSummary(null);
     
     const validationErrors = validateForm();
     if (Object.keys(validationErrors).length > 0) {
         setErrors(validationErrors);
+        setValidationSummary('Foram encontrados erros no formulário. Por favor, verifique os campos destacados em vermelho.');
         
         const newTabErrors: Record<number, boolean> = {};
         let firstErrorTab: number | null = null;
@@ -660,6 +668,9 @@ function App() {
         }
 
         setIsSubmitting(false);
+        setTimeout(() => {
+          document.getElementById('validation-summary')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 100);
         return;
     }
 
@@ -1152,6 +1163,13 @@ function App() {
                     </div>
                   )}
 
+                  {validationSummary && (
+                    <div id="validation-summary" className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 animate-fade-in-down" role="alert">
+                      <p className="font-bold">Atenção!</p>
+                      <p>{validationSummary}</p>
+                    </div>
+                  )}
+
                   <form onSubmit={handleSubmit} noValidate>
                     <div className="mb-6">
                       <div className="bg-gray-200 rounded-full h-2.5">
@@ -1209,234 +1227,141 @@ function App() {
                               Avançar
                           </button>
                       </div>
-
+                      
                       <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-                        <div className="flex-grow">
-                          {/* Auto-save message is now a toast notification */}
+                        <div>
+                          <button
+                            type="button"
+                            onClick={handleClear}
+                            className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition"
+                          >
+                            Limpar Formulário
+                          </button>
                         </div>
-
-                        <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
-                             <button
-                              type="button"
-                              onClick={handleClear}
-                              className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition"
+                        
+                        <div>
+                           <button
+                              type="submit"
+                              disabled={isSubmitting || isSuccess}
+                              className="w-full sm:w-auto px-6 py-3 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-emerald-600 hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition-all duration-300 flex items-center justify-center disabled:bg-emerald-400 disabled:cursor-not-allowed"
                             >
-                              Limpar Formulário
+                              {isSubmitting ? (
+                                <>
+                                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                  <span>Processando...</span>
+                                </>
+                              ) : isSuccess ? (
+                                <>
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                                  <span>Sucesso!</span>
+                                </>
+                              ) : (
+                                submitButtonText
+                              )}
                             </button>
-                            {editingReportId && (
-                              <button
-                                  type="button"
-                                  onClick={handleSaveDraft}
-                                  className="w-full sm:w-auto px-4 py-2 border border-emerald-300 rounded-md shadow-sm text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition"
-                              >
-                                  Salvar Rascunho
-                              </button>
-                            )}
-                            
-                            {showExportOptions ? (
-                                <Dropdown
-                                    buttonText="Exportar Relatório"
-                                    isLoading={isDownloadingPdf}
-                                    loadingText="Baixando..."
-                                >
-                                    <button onClick={handlePrint} className="text-left w-full block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Imprimir Relatório</button>
-                                    <button onClick={handleDownloadPdf} className="text-left w-full block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Baixar como PDF</button>
-                                    <button onClick={handleExportExcel} className="text-left w-full block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Exportar para Excel</button>
-                                </Dropdown>
-                            ) : (
-                              <button
-                                type="submit"
-                                disabled={isSubmitting || isSuccess}
-                                className={`w-full sm:w-auto px-6 py-3 border border-transparent rounded-md shadow-sm text-base font-medium text-white transition-all duration-300 flex items-center justify-center disabled:cursor-not-allowed ${
-                                  isSuccess
-                                    ? 'bg-green-500'
-                                    : 'bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400'
-                                } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500`}
-                              >
-                                {isSubmitting ? (
-                                  <>
-                                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                    </svg>
-                                    <span>{editingReportId ? 'Atualizando...' : 'Registrando...'}</span>
-                                  </>
-                                ) : isSuccess ? (
-                                  <>
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                    </svg>
-                                    <span>Sucesso!</span>
-                                  </>
-                                ) : (
-                                  submitButtonText
-                                )}
-                              </button>
-                            )}
                         </div>
                       </div>
+
                     </div>
                   </form>
+                  <FloatingActionButton
+                    onNewReport={handleNewReport}
+                    onSaveDraft={handleSaveDraft}
+                    onDownloadPdf={handleDownloadPdf}
+                    onExportExcel={handleExportExcel}
+                    showExportOptions={showExportOptions}
+                    editingReportId={editingReportId}
+                  />
                 </>
               )}
             </main>
           </div>
-          <footer className="text-center text-gray-500 text-sm mt-8 pb-4">
-              <p>Plataforma Inteligente de Registro de Ocorrências</p>
-              <p>&copy; {new Date().getFullYear()}. Todos os direitos reservados.</p>
-          </footer>
         </div>
-      </div>
-       
-      {/* History Panel Side-drawer */}
-      <div
-          className={`fixed inset-0 z-30 transition-opacity duration-300 ${isHistoryPanelOpen ? 'bg-black bg-opacity-50' : 'bg-transparent pointer-events-none'}`}
-          onClick={handleToggleHistory}
-          aria-hidden="true"
-      ></div>
-      <aside className={`fixed top-0 right-0 h-full bg-gray-50 shadow-2xl z-40 transition-transform duration-300 ease-in-out w-full max-w-md sm:max-w-lg ${isHistoryPanelOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-          <HistoryPanel 
-              reports={history} 
-              onLoadReport={handleLoadReport} 
-              onDeleteReport={handleDeleteReport}
-              onImportReports={handleImportReports}
-              onStatusChange={handleStatusChange}
-              currentReportId={editingReportId}
-              onSetToast={setToast}
-              onApiKeyCheck={() => { if (!apiKey) setIsApiKeyModalOpen(true); return !!apiKey; }}
-              onClose={handleToggleHistory}
-          />
-      </aside>
-
-      <PrintableReport reportData={reportForExport} />
-      {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast(null)}
+        
+        <HistoryPanel 
+          reports={history} 
+          onLoadReport={handleLoadReport} 
+          onDeleteReport={handleDeleteReport}
+          onImportReports={handleImportReports}
+          onStatusChange={handleStatusChange}
+          onClose={handleToggleHistory}
+          currentReportId={editingReportId}
+          onSetToast={setToast}
+          onApiKeyCheck={() => {
+            if (!apiKey) {
+              setIsApiKeyModalOpen(true);
+              return false;
+            }
+            return true;
+          }}
         />
-      )}
-      <ConfirmationModal
-        isOpen={isDeleteModalOpen}
-        onClose={() => setIsDeleteModalOpen(false)}
-        onConfirm={confirmDelete}
-        title="Confirmar Exclusão"
-        confirmText="Sim, Excluir"
-        variant="danger"
-      >
-        Você tem certeza que deseja excluir o relatório de <strong>{reportToDelete?.studentName || 'este aluno'}</strong>?
-        <br />
-        Esta ação não pode ser desfeita.
-      </ConfirmationModal>
-      <ConfirmationModal
-        isOpen={isClearModalOpen}
-        onClose={() => setIsClearModalOpen(false)}
-        onConfirm={confirmClear}
-        title="Limpar Formulário"
-        confirmText="Sim, Limpar"
-        variant="danger"
-      >
-        Você tem certeza que deseja limpar o formulário e descartar todas as informações inseridas?
-        <br />
-        Esta ação não pode ser desfeita.
-      </ConfirmationModal>
-      <ConfirmationModal
-        isOpen={isCancelEditModalOpen}
-        onClose={() => setIsCancelEditModalOpen(false)}
-        onConfirm={confirmClear}
-        title="Descartar Alterações"
-        confirmText="Sim, Descartar"
-        variant="danger"
-      >
-        Você tem certeza que deseja descartar as alterações não salvas?
-      </ConfirmationModal>
-      <ConfirmationModal
-        isOpen={isLoadConfirmModalOpen}
-        onClose={() => {
-            setIsLoadConfirmModalOpen(false);
-            setReportToLoadId(null);
-        }}
-        onConfirm={confirmDiscardAndLoad}
-        title="Carregar Relatório"
-        confirmText="Descartar e Carregar"
-        variant="danger"
-      >
-        Você possui alterações não salvas no formulário atual. Deseja descartar essas alterações e carregar o relatório selecionado?
-      </ConfirmationModal>
-      <GeminiAnalysisModal
-        isOpen={isGeminiModalOpen}
-        onClose={() => setIsGeminiModalOpen(false)}
-        analysisResult={geminiResult}
-        onApplySuggestion={handleApplySuggestion}
-        isLoading={isAnalyzing}
-        error={geminiError}
-      />
-      <ApiKeyModal
-        isOpen={isApiKeyModalOpen}
-        onClose={() => setIsApiKeyModalOpen(false)}
-        onSave={handleSaveApiKey}
-        currentApiKey={apiKey}
-      />
-      {view === 'form' && (
-          <FloatingActionButton
-            onNewReport={handleNewReport}
-            onSaveDraft={handleSaveDraft}
-            onDownloadPdf={handleDownloadPdf}
-            onExportExcel={handleExportExcel}
-            showExportOptions={showExportOptions}
-            editingReportId={editingReportId}
-          />
-        )}
-      <style>{`
-        @keyframes fade-in {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        .animate-fade-in {
-          animation: fade-in 0.5s ease-out forwards;
-        }
-        @keyframes fade-in-up {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        .animate-fade-in-up {
-            animation: fade-in-up 0.3s ease-out forwards;
-        }
-        @keyframes fade-in-down {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-in-down {
-            animation: fade-in-down 0.3s ease-out forwards;
-        }
-        @keyframes backdrop-fade-in {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-        .animate-backdrop-fade-in {
-            animation: backdrop-fade-in 0.2s ease-out forwards;
-        }
-        @keyframes scale-in {
-            from { opacity: 0; transform: scale(0.95); }
-            to { opacity: 1; transform: scale(1); }
-        }
-        .animate-scale-in {
-            animation: scale-in 0.2s ease-out forwards;
-        }
-        @keyframes fade-in-up-fast {
-            from { opacity: 0; transform: translateY(5px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-in-up-fast {
-            animation: fade-in-up-fast 0.2s ease-out forwards;
-        }
-      `}</style>
+
+        {/* --- Modals and Toasts --- */}
+        <ConfirmationModal
+          isOpen={isDeleteModalOpen}
+          onClose={() => setIsDeleteModalOpen(false)}
+          onConfirm={confirmDelete}
+          title="Confirmar Exclusão"
+          variant="danger"
+          confirmText="Excluir"
+        >
+          Você tem certeza que deseja excluir o relatório de <strong>{reportToDelete?.studentName}</strong>? Esta ação não pode ser desfeita.
+        </ConfirmationModal>
+        
+        <ConfirmationModal
+          isOpen={isClearModalOpen}
+          onClose={() => setIsClearModalOpen(false)}
+          onConfirm={confirmClear}
+          title="Limpar Formulário"
+          variant="danger"
+          confirmText="Limpar"
+        >
+          Você tem certeza que deseja limpar todos os campos do formulário? Qualquer rascunho não salvo será perdido.
+        </ConfirmationModal>
+
+        <ConfirmationModal
+          isOpen={isCancelEditModalOpen}
+          onClose={() => setIsCancelEditModalOpen(false)}
+          onConfirm={confirmClear}
+          title="Descartar Alterações"
+          variant="primary"
+          confirmText="Descartar e Sair"
+        >
+          Você está editando um relatório ou possui um rascunho. Deseja descartar as alterações e começar um novo registro?
+        </ConfirmationModal>
+
+        <ConfirmationModal
+          isOpen={isLoadConfirmModalOpen}
+          onClose={() => setIsLoadConfirmModalOpen(false)}
+          onConfirm={confirmDiscardAndLoad}
+          title="Carregar Relatório"
+          variant="primary"
+          confirmText="Descartar e Carregar"
+        >
+          Você tem alterações não salvas no formulário atual. Deseja descartá-las para carregar um relatório do histórico?
+        </ConfirmationModal>
+
+        <GeminiAnalysisModal
+          isOpen={isGeminiModalOpen}
+          onClose={() => setIsGeminiModalOpen(false)}
+          analysisResult={geminiResult}
+          onApplySuggestion={handleApplySuggestion}
+          isLoading={isAnalyzing}
+          error={geminiError}
+        />
+        
+        <ApiKeyModal
+          isOpen={isApiKeyModalOpen}
+          onClose={() => setIsApiKeyModalOpen(false)}
+          onSave={handleSaveApiKey}
+          currentApiKey={apiKey}
+        />
+
+        {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      </div>
+      <div className="printable-area">
+        <PrintableReport reportData={reportForExport} />
+      </div>
     </>
   );
 }

@@ -92,7 +92,11 @@ const PrintableReport: React.FC<PrintableReportProps> = ({ reportData }) => {
     <div className="printable-area hidden">
       <div className="p-8 bg-white text-black font-sans text-base">
         <header className="text-center mb-8 border-b-4 border-emerald-600 pb-4">
-            <div className="flex items-center justify-center gap-4 text-emerald-800">
+            <div className="text-sm font-semibold text-gray-700">PREFEITURA MUNICIPAL DE ITABERABA</div>
+            <div className="text-sm text-gray-600">SECRETARIA MUNICIPAL DE EDUCAÇÃO – SMED</div>
+            <div className="text-sm text-gray-600 mb-4">COORDENAÇÃO DE GESTÃO DO ENSINO E DE AÇÕES SOCIOEDUCATIVAS</div>
+
+            <div className="flex items-center justify-center gap-4 text-emerald-800 mt-4">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                 <h1 className="text-2xl font-bold">FICHA DE REGISTRO DE OCORRÊNCIA ESCOLAR</h1>
             </div>
