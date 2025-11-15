@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { GoogleGenAI, Type } from "@google/genai";
 import type { OccurrenceReport, SavedReport, ReportImage, GeminiAnalysisResult, Modification, FormErrors, ReportStatus } from './types';
-import { DRAFT_STORAGE_KEY, HISTORY_STORAGE_KEY, AUTH_SESSION_KEY, occurrenceTypeLabels, severityOptions } from './constants';
+import { DRAFT_STORAGE_KEY, HISTORY_STORAGE_KEY, AUTH_SESSION_KEY, occurrenceTypeLabels, severityOptions, GEMINI_API_KEY } from './constants';
 
 
 // New Component Imports
@@ -561,6 +561,14 @@ function App() {
         const errorMessage = validateStudentRegistration(value);
         setErrors(prev => ({ ...prev, studentRegistration: errorMessage }));
     }
+    
+    if (name === 'occurrenceDateTime') {
+        if (new Date(value) > new Date()) {
+            setErrors(prevErrors => ({ ...prevErrors, occurrenceDateTime: 'A data da ocorrência não pode ser no futuro.' }));
+        } else {
+            setErrors(prevErrors => ({ ...prevErrors, occurrenceDateTime: undefined }));
+        }
+    }
 
     setFormData(prev => {
         let finalValue = value;
@@ -1012,7 +1020,7 @@ function App() {
     setIsGeminiModalOpen(true);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
       
       const checkedTypes = occurrenceTypeLabels
         .filter(({ key }) => formData.occurrenceTypes[key])
@@ -1069,7 +1077,7 @@ function App() {
       let errorMessage = "Não foi possível obter a análise da IA. Verifique sua conexão e tente novamente.";
       if (error instanceof Error) {
         if (error.message.includes('API key not valid')) {
-            errorMessage = "A chave de API configurada no ambiente não é válida. Entre em contato com o administrador.";
+            errorMessage = "A chave de API configurada não é válida. Por favor, contate o administrador.";
         } else if (error.message.includes('fetch')) {
             errorMessage = "Erro de rede ao contatar a IA. Verifique sua conexão com a internet.";
         } else if (error.message.includes('Formato de resposta da IA inválido')) {
@@ -1082,13 +1090,22 @@ function App() {
     }
   };
 
-  const handleApplySuggestion = (field: 'immediateActions' | 'referralsMade', value: string) => {
+  const handleApplyAllSuggestions = (result: GeminiAnalysisResult) => {
     setFormData(prev => ({
         ...prev,
-        [field]: prev[field] ? `${prev[field]}\n\n[Sugestão IA]: ${value}` : value,
+        detailedDescription: prev.detailedDescription 
+            ? `${prev.detailedDescription}\n\n--- RESUMO DA IA ---\n${result.summary}` 
+            : result.summary,
+        immediateActions: prev.immediateActions 
+            ? `${prev.immediateActions}\n\n--- SUGESTÃO DA IA ---\n${result.immediateActions}` 
+            : result.immediateActions,
+        referralsMade: prev.referralsMade 
+            ? `${prev.referralsMade}\n\n--- SUGESTÃO DA IA ---\n${result.referrals}` 
+            : result.referrals,
+        occurrenceSeverity: result.severity,
     }));
     setIsGeminiModalOpen(false);
-    setToast({ message: 'Sugestão aplicada com sucesso!', type: 'success' });
+    setToast({ message: 'Sugestões da IA aplicadas com sucesso!', type: 'success' });
   };
 
 
@@ -1351,7 +1368,7 @@ function App() {
           isOpen={isGeminiModalOpen}
           onClose={() => setIsGeminiModalOpen(false)}
           analysisResult={geminiResult}
-          onApplySuggestion={handleApplySuggestion}
+          onApplyAllSuggestions={handleApplyAllSuggestions}
           isLoading={isAnalyzing}
           error={geminiError}
         />

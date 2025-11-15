@@ -4,6 +4,7 @@ export const DRAFT_STORAGE_KEY = 'schoolOccurrenceReportFormData';
 export const HISTORY_STORAGE_KEY = 'schoolOccurrenceReportHistory';
 export const AUTH_SESSION_KEY = 'pioe_auth_session';
 export const RECENT_SEARCHES_KEY = 'pioe_recent_searches';
+export const GEMINI_API_KEY = 'AIzaSyA6xtD1C7hIpiP4zSNWh95UF1CAL4ihQpo';
 
 export const occurrenceTypeLabels: { key: keyof OccurrenceReport['occurrenceTypes']; label: string }[] = [
     { key: 'physicalAssault', label: 'Agressão física' },

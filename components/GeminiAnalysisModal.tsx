@@ -5,12 +5,12 @@ interface GeminiAnalysisModalProps {
   isOpen: boolean;
   onClose: () => void;
   analysisResult: GeminiAnalysisResult | null;
-  onApplySuggestion: (field: 'immediateActions' | 'referralsMade', value: string) => void;
+  onApplyAllSuggestions: (result: GeminiAnalysisResult) => void;
   isLoading: boolean;
   error: string | null;
 }
 
-const GeminiAnalysisModal: React.FC<GeminiAnalysisModalProps> = ({ isOpen, onClose, analysisResult, onApplySuggestion, isLoading, error }) => {
+const GeminiAnalysisModal: React.FC<GeminiAnalysisModalProps> = ({ isOpen, onClose, analysisResult, onApplyAllSuggestions, isLoading, error }) => {
   const modalRef = useRef<HTMLDivElement>(null);
   const previouslyFocusedElement = useRef<HTMLElement | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
@@ -162,14 +162,9 @@ const GeminiAnalysisModal: React.FC<GeminiAnalysisModalProps> = ({ isOpen, onClo
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <h4 className="text-base font-semibold text-gray-800">Sugestões de Ações Imediatas</h4>
-                   <div className="flex items-center gap-2">
-                     <button onClick={() => handleCopyToClipboard(analysisResult.immediateActions, 'actions')} className="px-2.5 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors">
-                       {copiedField === 'actions' ? 'Copiado!' : 'Copiar'}
-                     </button>
-                     <button onClick={() => onApplySuggestion('immediateActions', analysisResult.immediateActions)} className="px-2.5 py-1 text-xs font-medium text-emerald-700 bg-emerald-100 rounded-md hover:bg-emerald-200 transition-colors">
-                       Aplicar
-                     </button>
-                   </div>
+                   <button onClick={() => handleCopyToClipboard(analysisResult.immediateActions, 'actions')} className="px-2.5 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors">
+                     {copiedField === 'actions' ? 'Copiado!' : 'Copiar'}
+                   </button>
                 </div>
                 <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-md border">{analysisResult.immediateActions}</p>
               </div>
@@ -177,21 +172,16 @@ const GeminiAnalysisModal: React.FC<GeminiAnalysisModalProps> = ({ isOpen, onClo
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <h4 className="text-base font-semibold text-gray-800">Sugestões de Encaminhamentos</h4>
-                   <div className="flex items-center gap-2">
-                      <button onClick={() => handleCopyToClipboard(analysisResult.referrals, 'referrals')} className="px-2.5 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors">
-                        {copiedField === 'referrals' ? 'Copiado!' : 'Copiar'}
-                      </button>
-                      <button onClick={() => onApplySuggestion('referralsMade', analysisResult.referrals)} className="px-2.5 py-1 text-xs font-medium text-emerald-700 bg-emerald-100 rounded-md hover:bg-emerald-200 transition-colors">
-                        Aplicar
-                      </button>
-                   </div>
+                    <button onClick={() => handleCopyToClipboard(analysisResult.referrals, 'referrals')} className="px-2.5 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors">
+                      {copiedField === 'referrals' ? 'Copiado!' : 'Copiar'}
+                    </button>
                 </div>
                 <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-md border">{analysisResult.referrals}</p>
               </div>
             </div>
           )}
         </div>
-        <div className="bg-gray-50 px-6 py-3 text-right rounded-b-lg">
+        <div className="bg-gray-50 px-6 py-3 flex flex-col-reverse sm:flex-row sm:justify-end gap-3 rounded-b-lg">
           <button
             type="button"
             className="w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 sm:w-auto sm:text-sm transition"
@@ -199,6 +189,15 @@ const GeminiAnalysisModal: React.FC<GeminiAnalysisModalProps> = ({ isOpen, onClo
           >
             Fechar
           </button>
+          {!isLoading && !error && analysisResult && (
+              <button
+                type="button"
+                onClick={() => onApplyAllSuggestions(analysisResult)}
+                className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-emerald-600 text-base font-medium text-white hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 sm:w-auto sm:text-sm transition"
+              >
+                Aplicar Sugestões
+              </button>
+          )}
         </div>
       </div>
     </div>

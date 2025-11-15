@@ -23,7 +23,7 @@ const GoodbyeScreen: React.FC<GoodbyeScreenProps> = ({ onReturnToLogin }) => {
           onClick={onReturnToLogin}
           className="w-full px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-md hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 transition-colors"
         >
-          Voltar ao Login
+          Voltar para o Login
         </button>
          <p className="mt-8 text-center text-xs text-gray-500">
             &copy; {new Date().getFullYear()} Plataforma Inteligente de Registro de Ocorrências.
