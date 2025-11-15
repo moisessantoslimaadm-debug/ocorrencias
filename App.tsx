@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { GoogleGenAI, Type } from "@google/genai";
 import type { OccurrenceReport, SavedReport, ReportImage, GeminiAnalysisResult, Modification, FormErrors, ReportStatus } from './types';
-import { DRAFT_STORAGE_KEY, HISTORY_STORAGE_KEY, AUTH_SESSION_KEY, API_KEY_STORAGE_KEY, occurrenceTypeLabels, severityOptions } from './constants';
+import { DRAFT_STORAGE_KEY, HISTORY_STORAGE_KEY, AUTH_SESSION_KEY, occurrenceTypeLabels, severityOptions } from './constants';
 
 
 // New Component Imports
@@ -19,7 +19,6 @@ import HistoryPanel from './components/HistoryPanel';
 import Toast from './components/Toast';
 import ConfirmationModal from './components/ConfirmationModal';
 import GeminiAnalysisModal from './components/GeminiAnalysisModal';
-import ApiKeyModal from './components/ApiKeyModal';
 import { seedData } from './data/seedData';
 import FloatingActionButton from './components/FloatingActionButton';
 
@@ -280,19 +279,10 @@ function App() {
 
 
   // Gemini AI State
-  const [apiKey, setApiKey] = useState<string | null>(null);
-  const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
   const [isGeminiModalOpen, setIsGeminiModalOpen] = useState(false);
   const [geminiResult, setGeminiResult] = useState<GeminiAnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [geminiError, setGeminiError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const savedKey = localStorage.getItem(API_KEY_STORAGE_KEY);
-    if (savedKey) {
-      setApiKey(savedKey);
-    }
-  }, []);
 
   const checkForUnsavedChanges = (action: () => void) => {
     const isPristine = JSON.stringify(formData) === JSON.stringify(getDefaultFormData());
@@ -859,6 +849,7 @@ function App() {
 
 
   const reportForExport = isSubmitted ? lastSubmittedReport : (editingReportId ? formData : null);
+  const showExportOptions = isSubmitted || !!editingReportId;
 
   const handlePrint = () => {
     if (!reportForExport) return;
@@ -1014,10 +1005,6 @@ function App() {
 
   const handleAnalyzeWithAI = async () => {
     if (!formData.detailedDescription) return;
-    if (!apiKey) {
-      setIsApiKeyModalOpen(true);
-      return;
-    }
 
     setIsAnalyzing(true);
     setGeminiError(null);
@@ -1025,7 +1012,7 @@ function App() {
     setIsGeminiModalOpen(true);
 
     try {
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       
       const checkedTypes = occurrenceTypeLabels
         .filter(({ key }) => formData.occurrenceTypes[key])
@@ -1082,7 +1069,7 @@ function App() {
       let errorMessage = "Não foi possível obter a análise da IA. Verifique sua conexão e tente novamente.";
       if (error instanceof Error) {
         if (error.message.includes('API key not valid')) {
-            errorMessage = "A chave de API fornecida não é válida. Verifique a chave e tente novamente.";
+            errorMessage = "A chave de API configurada no ambiente não é válida. Entre em contato com o administrador.";
         } else if (error.message.includes('fetch')) {
             errorMessage = "Erro de rede ao contatar a IA. Verifique sua conexão com a internet.";
         } else if (error.message.includes('Formato de resposta da IA inválido')) {
@@ -1092,25 +1079,6 @@ function App() {
       setGeminiError(errorMessage);
     } finally {
       setIsAnalyzing(false);
-    }
-  };
-
-  const handleSaveApiKey = (newKey: string) => {
-    const trimmedKey = newKey.trim();
-    if (trimmedKey) {
-        setApiKey(trimmedKey);
-        localStorage.setItem(API_KEY_STORAGE_KEY, trimmedKey);
-        setIsApiKeyModalOpen(false);
-        setToast({ message: 'Chave de API salva com sucesso!', type: 'success' });
-        // After saving the key, retry the analysis if the user was trying to.
-        if (isGeminiModalOpen) {
-          setIsGeminiModalOpen(false); // Close the gemini modal to restart the process
-          setTimeout(() => handleAnalyzeWithAI(), 100);
-        }
-    } else {
-        setApiKey(null);
-        localStorage.removeItem(API_KEY_STORAGE_KEY);
-        setToast({ message: 'Chave de API removida.', type: 'info' });
     }
   };
 
@@ -1125,7 +1093,6 @@ function App() {
 
 
   const submitButtonText = editingReportId ? 'Atualizar Relatório' : 'Registrar Ocorrência';
-  const showExportOptions = isSubmitted || !!editingReportId;
   const progressPercentage = useMemo(() => ((activeTab + 1) / TABS.length) * 100, [activeTab]);
 
 
@@ -1161,10 +1128,11 @@ function App() {
           <div className="bg-white rounded-lg shadow-2xl overflow-hidden">
             <AppHeader
               onLogout={handleLogout}
-              onApiKeyClick={() => setIsApiKeyModalOpen(true)}
               onNavigateToDashboard={handleNavigateToDashboard}
               onToggleHistory={handleToggleHistory}
               currentView={view}
+              onPrint={handlePrint}
+              showPrintButton={showExportOptions}
             />
 
             <main className="p-6 md:p-8">
@@ -1388,13 +1356,6 @@ function App() {
           error={geminiError}
         />
         
-        <ApiKeyModal
-          isOpen={isApiKeyModalOpen}
-          onClose={() => setIsApiKeyModalOpen(false)}
-          onSave={handleSaveApiKey}
-          currentApiKey={apiKey}
-        />
-
         {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
       </div>
       <div className="printable-area">

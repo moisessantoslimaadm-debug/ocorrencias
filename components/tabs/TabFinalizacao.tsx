@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import type { OccurrenceReport, FormErrors } from '../../types';
 import SectionHeader from '../SectionHeader';
@@ -12,9 +13,15 @@ interface TabFinalizacaoProps {
 }
 
 const TabFinalizacao: React.FC<TabFinalizacaoProps> = ({ formData, handleChange, errors }) => {
+  // Determine if the modification history section should be shown
+  const showModificationHistory = formData.modificationHistory && formData.modificationHistory.length > 0;
+  
+  // Dynamically set the section number for "ASSINATURA"
+  const signatureSectionNumber = showModificationHistory ? 11 : 10;
+
   return (
     <div className="animate-fade-in-up space-y-4">
-      {formData.id && formData.modificationHistory && formData.modificationHistory.length > 0 && (
+      {showModificationHistory && (
           <>
             <SectionHeader title="10. HISTÓRICO DE MODIFICAÇÕES" />
             <div className="bg-white p-4 rounded-b-md border border-t-0 border-gray-200">
@@ -30,7 +37,7 @@ const TabFinalizacao: React.FC<TabFinalizacaoProps> = ({ formData, handleChange,
           </>
         )}
 
-        <SectionHeader title="11. ASSINATURA" />
+        <SectionHeader title={`${signatureSectionNumber}. ASSINATURA`} />
         <div className="bg-white p-4 rounded-b-md border border-t-0 border-gray-200 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
           <InputField id="reporterName" name="reporterName" label="Responsável pelo registro" type="text" value={formData.reporterName} onChange={handleChange} error={errors.reporterName} tooltip={<Tooltip text="Nome completo do profissional que está preenchendo este relatório." />} />
           <InputField id="reporterDate" name="reporterDate" label="Data" type="date" value={formData.reporterDate} onChange={handleChange} description="Selecione ou digite a data." ariaLabel="Data do registro" error={errors.reporterDate} readOnly tooltip={<Tooltip text="Data de preenchimento do formulário. Preenchida automaticamente." />} />

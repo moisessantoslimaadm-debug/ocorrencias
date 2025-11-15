@@ -1,5 +1,5 @@
 import React from 'react';
-import type { OccurrenceReport } from '../types';
+import type { OccurrenceReport, ReportStatus } from '../types';
 
 interface PrintableReportProps {
   reportData: OccurrenceReport | null;
@@ -16,38 +16,41 @@ const occurrenceTypeLabelsMap: Record<keyof OccurrenceReport['occurrenceTypes'],
     other: 'Outros',
 };
 
-// Re-designed DataPair for better space utilization and readability
-const DataPair = ({ label, value, className = '', highlight = false }: { label: string; value: string | undefined | null; className?: string; highlight?: boolean }) => (
-  <div className={`grid grid-cols-3 gap-4 py-2 px-3 rounded-md ${highlight ? 'bg-gray-50' : ''} ${className}`}>
-    <dt className="text-sm font-medium text-gray-600 col-span-1 break-words">{label}</dt>
-    <dd className="text-sm text-gray-800 col-span-2">{value || <span className="text-gray-400 italic">Não preenchido</span>}</dd>
-  </div>
-);
+const getStatusBadge = (status: ReportStatus) => {
+    switch (status) {
+        case 'Novo': return 'bg-blue-100 text-blue-800 border-blue-200';
+        case 'Em Análise': return 'bg-purple-100 text-purple-800 border-purple-200';
+        case 'Resolvido': return 'bg-green-100 text-green-800 border-green-200';
+        case 'Arquivado': return 'bg-gray-200 text-gray-800 border-gray-300';
+        default: return 'bg-gray-100 text-gray-800 border-gray-200';
+    }
+};
 
-// Re-designed TextBlock for consistency within sections
-const TextBlock = ({ title, value }: { title: string; value: string | undefined | null }) => (
-    <div className="px-3 py-2 break-inside-avoid">
-        <h4 className="text-sm font-semibold text-gray-700 mb-2">{title}</h4>
-        <div className="p-3 border border-gray-200 bg-white rounded-md min-h-[60px] whitespace-pre-wrap text-sm text-gray-800">
-            {value || <p className="text-gray-400 italic">Não preenchido</p>}
-        </div>
-    </div>
-);
-
-// Re-designed Section component for better visual grouping
-interface SectionProps {
-  title: string;
-  children: React.ReactNode;
-}
-const Section: React.FC<SectionProps> = ({ title, children }) => (
-  <section className="mb-6 break-inside-avoid">
-    <h3 className="text-base font-bold text-emerald-800 bg-gray-100 p-3 rounded-t-lg border-b-2 border-emerald-600">
+const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
+  <section className="mb-4 break-inside-avoid">
+    <h3 className="text-sm font-bold text-emerald-800 bg-gray-100 p-2 rounded-t-md border-l-4 border-emerald-600">
       {title}
     </h3>
-    <div className="border border-t-0 border-gray-200 rounded-b-lg p-3 bg-gray-50/30">
+    <div className="border border-t-0 border-gray-200 rounded-b-md px-3 py-2">
         {children}
     </div>
   </section>
+);
+
+const DataPair: React.FC<{ label: string; value: string | undefined | null; colSpan?: boolean; }> = ({ label, value, colSpan = false }) => (
+  <div className={`flex border-t border-gray-200 py-1.5 text-[9pt] ${colSpan ? 'flex-col sm:flex-row' : ''}`}>
+    <dt className={`font-semibold text-gray-600 pr-2 ${colSpan ? 'sm:w-1/3' : 'w-1/3'}`}>{label}</dt>
+    <dd className={`text-gray-800 break-words ${colSpan ? 'sm:w-2/3' : 'w-2/3'}`}>{value || <span className="text-gray-400">—</span>}</dd>
+  </div>
+);
+
+const TextBlock: React.FC<{ title: string; value: string | undefined | null }> = ({ title, value }) => (
+    <div className="pt-2 break-inside-avoid">
+        <h4 className="text-[9pt] font-semibold text-gray-700 mb-1">{title}</h4>
+        <div className="p-2 border border-gray-200 bg-white rounded-md min-h-[50px] whitespace-pre-wrap text-[9pt] text-gray-800">
+            {value || <p className="text-gray-400 italic">Não preenchido</p>}
+        </div>
+    </div>
 );
 
 
@@ -97,101 +100,114 @@ const PrintableReport: React.FC<PrintableReportProps> = ({ reportData }) => {
 
   return (
     <div className="printable-area hidden">
-      <div className="p-6 bg-white text-black font-sans text-base border-2 border-gray-200 shadow-lg">
-        <header className="text-center mb-6 border-b-4 border-emerald-600 pb-4">
-            <h1 className="text-2xl font-bold text-gray-800">FICHA DE REGISTRO DE OCORRÊNCIA ESCOLAR</h1>
-            <div className="text-sm text-gray-600 mt-2">
-                Secretaria Municipal de Educação – Itaberaba/BA
+      <div className="p-8 bg-white text-gray-800 font-sans text-[10pt] min-h-[29.7cm] w-[21cm] mx-auto">
+        <header className="flex justify-between items-center pb-4 border-b-2 border-emerald-700">
+            <div className="flex items-center gap-4">
+                <div className="flex-shrink-0 text-emerald-700">
+                     <svg className="h-14 w-14" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2L3 5V11C3 16.55 6.84 21.74 12 23C17.16 21.74 21 16.55 21 11V5L12 2M12 4.2L18 6.5V11C18 15.45 15.44 19.54 12 20.9C8.56 19.54 6 15.45 6 11V6.5L12 4.2M12 7A2 2 0 0 0 10 9A2 2 0 0 0 12 11A2 2 0 0 0 14 9A2 2 0 0 0 12 7M12 13C10.67 13 8 13.67 8 15V16H16V15C16 13.67 13.33 13 12 13Z" /></svg>
+                </div>
+                <div>
+                    <p className="font-semibold text-gray-700">Prefeitura Municipal de Itaberaba</p>
+                    <p className="text-sm text-gray-600">Secretaria Municipal de Educação – SMED</p>
+                </div>
+            </div>
+            <div className="text-right">
+                <h1 className="text-xl font-bold text-gray-800">FICHA DE REGISTRO</h1>
+                <h2 className="text-lg font-semibold text-emerald-700">DE OCORRÊNCIA ESCOLAR</h2>
             </div>
         </header>
 
-        <div className="mb-6 bg-emerald-50 p-4 rounded-lg border border-emerald-200 space-y-1">
-             <div className="flex justify-between items-baseline mb-2">
-                <h3 className="text-base font-bold text-emerald-800">DADOS GERAIS DO REGISTRO</h3>
-                <p className="text-sm text-emerald-800">Status: <span className="font-semibold">{status}</span></p>
+        <main className="mt-4">
+            <div className="border border-gray-200 rounded-lg p-2 mb-4">
+                <div className="flex justify-between items-start">
+                    <h3 className="font-bold text-gray-700">DADOS GERAIS DO REGISTRO</h3>
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${getStatusBadge(status)}`}>
+                        Status: {status}
+                    </span>
+                </div>
+                <dl className="mt-1">
+                    <DataPair label="Unidade Escolar" value={schoolUnit} />
+                    <DataPair label="Município / UF" value={`${municipality} / ${uf}`} />
+                    <DataPair label="Data e Hora do Registro" value={`${formatDate(fillDate)} às ${fillTime}`} />
+                </dl>
             </div>
-             <DataPair label="Unidade Escolar" value={schoolUnit} highlight />
-             <DataPair label="Município / UF" value={`${municipality} / ${uf}`} />
-             <DataPair label="Data e Hora do Registro" value={`${formatDate(fillDate)} às ${fillTime}`} highlight />
-        </div>
-        
-        <div className="space-y-4">
-            <Section title="1. IDENTIFICAÇÃO DO ALUNO">
-                <div className="flex flex-row gap-x-6 items-start">
-                    <div className="w-28 flex-shrink-0">
-                        <div className="w-28 h-32 border-2 border-gray-300 rounded-md flex items-center justify-center bg-gray-100">
+            
+            <div className="grid grid-cols-2 gap-x-4">
+                <Section title="1. IDENTIFICAÇÃO DO ALUNO">
+                    <div className="flex items-start gap-3">
+                         <div className="w-20 h-24 border border-gray-200 rounded-sm flex items-center justify-center bg-gray-50 flex-shrink-0">
                             {studentPhoto ? (
-                                <img src={studentPhoto.dataUrl} alt="Foto do Aluno" className="w-full h-full object-cover rounded-md" />
+                                <img src={studentPhoto.dataUrl} alt="Foto do Aluno" className="w-full h-full object-cover" />
                             ) : (
-                                <span className="text-xs text-gray-500 text-center p-2">Sem foto</span>
+                                <span className="text-[8pt] text-gray-400 text-center p-1">Sem foto</span>
                             )}
                         </div>
+                        <dl className="flex-grow">
+                            <DataPair label="Nome" value={studentName} />
+                            <DataPair label="Nascimento" value={formatDate(studentDob)} />
+                            <DataPair label="Idade" value={studentAge ? `${studentAge} anos` : ''} />
+                            <DataPair label="Matrícula" value={studentRegistration} />
+                            <DataPair label="Ano/Série" value={studentGrade} />
+                            <DataPair label="Turno" value={studentShift} />
+                        </dl>
                     </div>
-                    <div className="flex-grow space-y-1">
-                        <DataPair label="Nome completo" value={studentName} highlight />
-                        <DataPair label="Data de nascimento" value={formatDate(studentDob)} />
-                        <DataPair label="Idade" value={studentAge ? `${studentAge} anos` : ''} highlight />
-                        <DataPair label="Nº de matrícula" value={studentRegistration} />
-                        <DataPair label="Ano/Série" value={studentGrade} highlight />
-                        <DataPair label="Turno" value={studentShift} />
-                    </div>
-                </div>
-            </Section>
-            
-            <Section title="2. RESPONSÁVEL LEGAL">
-                <div className="space-y-1">
-                    <DataPair label="Nome completo" value={guardianName} highlight />
-                    <DataPair label="Parentesco" value={guardianRelationship} />
-                    <DataPair label="Contato telefônico" value={guardianPhone} highlight />
-                    <DataPair label="E-mail" value={guardianEmail} />
-                    <DataPair label="Endereço completo" value={guardianAddress} highlight className="col-span-2" />
-                </div>
-            </Section>
+                </Section>
+                
+                <Section title="2. RESPONSÁVEL LEGAL">
+                    <dl>
+                        <DataPair label="Nome" value={guardianName} />
+                        <DataPair label="Parentesco" value={guardianRelationship} />
+                        <DataPair label="Telefone" value={guardianPhone} />
+                        <DataPair label="E-mail" value={guardianEmail} />
+                        <DataPair label="Endereço" value={guardianAddress} colSpan />
+                    </dl>
+                </Section>
+            </div>
 
             <Section title="3. CARACTERIZAÇÃO DA OCORRÊNCIA">
-                <div className="space-y-1">
-                    <DataPair label="Data e Hora" value={formattedOccurrenceDateTime} highlight />
+                <dl>
+                    <DataPair label="Data e Hora" value={formattedOccurrenceDateTime} />
                     <DataPair label="Local" value={occurrenceLocation} />
-                    <DataPair label="Gravidade" value={occurrenceSeverity} highlight />
-                    <DataPair label="Tipo(s) de ocorrência" value={checkedOccurrenceTypes} />
-                    {occurrenceTypes.other && <DataPair label="Descrição 'Outros'" value={occurrenceOtherDescription} highlight />}
-                </div>
+                    <DataPair label="Gravidade" value={occurrenceSeverity} />
+                    <DataPair label="Tipo(s)" value={checkedOccurrenceTypes} colSpan />
+                    {occurrenceTypes.other && <DataPair label="Descrição 'Outros'" value={occurrenceOtherDescription} colSpan />}
+                </dl>
             </Section>
 
              <Section title="4. DESCRIÇÃO DO FATO E AÇÕES TOMADAS">
                 <div className="space-y-2">
-                    <TextBlock title="Descrição Detalhada do Fato" value={detailedDescription} />
-                    <TextBlock title="Pessoas Envolvidas (Testemunhas, etc.)" value={peopleInvolved} />
-                    <TextBlock title="Providências Imediatas Adotadas pela Escola" value={immediateActions} />
-                    <TextBlock title="Encaminhamentos Realizados (Conselho Tutelar, etc.)" value={referralsMade} />
-                    <TextBlock title="Avaliação e Observações do Serviço Social" value={socialServiceObservation} />
+                    <TextBlock title="Descrição Detalhada do Fato:" value={detailedDescription} />
+                    <TextBlock title="Pessoas Envolvidas (Testemunhas, etc.):" value={peopleInvolved} />
+                    <TextBlock title="Providências Imediatas Adotadas pela Escola:" value={immediateActions} />
+                    <TextBlock title="Encaminhamentos Realizados (Conselho Tutelar, etc.):" value={referralsMade} />
+                    <TextBlock title="Avaliação e Observações do Serviço Social:" value={socialServiceObservation} />
                 </div>
             </Section>
 
             <Section title="5. EVIDÊNCIAS (IMAGENS)">
                 {images && images.length > 0 ? (
-                    <div className="grid grid-cols-3 gap-4 p-3">
+                    <div className="grid grid-cols-4 gap-2 p-1">
                         {images.map((image, index) => (
                             <div key={index} className="break-inside-avoid text-center">
-                              <div className="border-2 border-gray-300 p-1 rounded-md flex justify-center items-center bg-gray-100 h-40">
+                              <div className="border border-gray-200 p-0.5 rounded-sm flex justify-center items-center bg-gray-50 h-32">
                                 <img
                                   src={image.dataUrl}
-                                  alt={`Evidência ${index + 1}: ${image.name}`}
+                                  alt={`Evidência ${index + 1}`}
                                   className="max-w-full max-h-full object-contain"
                                 />
                               </div>
-                              <p className="text-xs mt-1 text-gray-600 break-all">{image.name}</p>
+                              <p className="text-[8pt] mt-0.5 text-gray-600 break-all truncate" title={image.name}>{image.name}</p>
                             </div>
                         ))}
                     </div>
                 ) : (
-                    <p className="text-sm text-gray-500 italic p-3">Nenhuma imagem anexada.</p>
+                    <p className="text-sm text-gray-500 italic p-2">Nenhuma imagem anexada.</p>
                 )}
             </Section>
 
             {modificationHistory && modificationHistory.length > 0 && (
                 <Section title="6. HISTÓRICO DE MODIFICAÇÕES">
-                    <ul className="list-disc pl-5 space-y-1 text-sm text-gray-700 p-3">
+                    <ul className="list-disc pl-4 space-y-1 text-[9pt] text-gray-700 py-1">
                         {modificationHistory.map((mod, index) => (
                             <li key={index}>
                                 Relatório atualizado em: {new Date(mod.date).toLocaleString('pt-BR')}
@@ -202,25 +218,27 @@ const PrintableReport: React.FC<PrintableReportProps> = ({ reportData }) => {
             )}
             
             <Section title={`${finalSectionNumber}. ASSINATURAS`}>
-                <div className="grid grid-cols-2 gap-x-8 gap-y-16 mt-16 text-sm text-center p-4">
-                    <div>
-                        <p className="border-t-2 border-gray-400 pt-2">{reporterName || '\u00A0'}</p>
-                        <p className="text-xs text-gray-600">Responsável pelo registro (Data: {formatDate(reporterDate) || '__/__/____'})</p>
+                <div className="grid grid-cols-2 gap-x-8 gap-y-16 mt-12 text-xs text-center p-2">
+                    <div className="pt-2 border-t border-gray-400">
+                        <p className="font-semibold h-4">{reporterName || '\u00A0'}</p>
+                        <p className="text-gray-600">Responsável pelo registro (Data: {formatDate(reporterDate) || '__/__/____'})</p>
                     </div>
-                    <div>
-                        <p className="border-t-2 border-gray-400 pt-2">{guardianSignatureName || '\u00A0'}</p>
-                        <p className="text-xs text-gray-600">Responsável legal do aluno (Data: {formatDate(guardianSignatureDate) || '__/__/____'})</p>
+                    <div className="pt-2 border-t border-gray-400">
+                        <p className="font-semibold h-4">{guardianSignatureName || '\u00A0'}</p>
+                        <p className="text-gray-600">Responsável legal do aluno (Data: {formatDate(guardianSignatureDate) || '__/__/____'})</p>
                     </div>
                     <div className="col-span-2 pt-8 mx-auto w-1/2">
-                        <p className="border-t-2 border-gray-400 pt-2">{socialWorkerSignatureName || '\u00A0'}</p>
-                        <p className="text-xs text-gray-600">Assistente Social (Data: {formatDate(socialWorkerSignatureDate) || '__/__/____'})</p>
+                       <div className="pt-2 border-t border-gray-400">
+                           <p className="font-semibold h-4">{socialWorkerSignatureName || '\u00A0'}</p>
+                           <p className="text-gray-600">Assistente Social (Data: {formatDate(socialWorkerSignatureDate) || '__/__/____'})</p>
+                       </div>
                     </div>
                 </div>
             </Section>
-        </div>
+        </main>
 
-        <footer className="text-center text-gray-500 text-xs mt-12 pt-4 border-t border-gray-300">
-          <p>Plataforma Inteligente de Registro de Ocorrências &copy; {new Date().getFullYear()}</p>
+        <footer className="text-center text-gray-500 text-[8pt] mt-6 pt-2 border-t border-gray-200">
+          <p>Plataforma Inteligente de Registro de Ocorrências &copy; {new Date().getFullYear()} - Prefeitura Municipal de Itaberaba/BA</p>
         </footer>
       </div>
     </div>
