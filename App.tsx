@@ -284,9 +284,12 @@ function App() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [geminiError, setGeminiError] = useState<string | null>(null);
 
+  const isFormDirty = useMemo(() => {
+    return JSON.stringify(formData) !== JSON.stringify(getDefaultFormData());
+  }, [formData]);
+
   const checkForUnsavedChanges = (action: () => void) => {
-    const isPristine = JSON.stringify(formData) === JSON.stringify(getDefaultFormData());
-    if (!isPristine) {
+    if (isFormDirty) {
       setLeavePageAction(() => action);
       setIsLeavePageModalOpen(true);
     } else {
@@ -1107,6 +1110,40 @@ function App() {
     setIsGeminiModalOpen(false);
     setToast({ message: 'Sugestões da IA aplicadas com sucesso!', type: 'success' });
   };
+  
+  const handleRewriteDescription = async (description: string): Promise<{ rewrittenText: string | null; error: string | null }> => {
+    if (!description) return { rewrittenText: null, error: "A descrição original está vazia e não pode ser reescrita." };
+
+    try {
+        const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+        const prompt = `Você é um especialista em redação de documentos oficiais para o ambiente escolar. Reescreva a seguinte descrição de uma ocorrência para que seja clara, objetiva, imparcial e formal. Mantenha todos os fatos importantes, mas organize-os em uma narrativa coesa e profissional, adequada para um relatório oficial. Não adicione opiniões ou informações que não estejam presentes no texto original. Retorne apenas o texto reescrito, sem introduções ou observações.
+
+        Texto Original: "${description}"`;
+
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+        });
+        
+        const rewrittenText = response.text.trim();
+        if (!rewrittenText) {
+            return { rewrittenText: null, error: "A IA não conseguiu gerar uma nova versão. Tente novamente." };
+        }
+        return { rewrittenText, error: null };
+    } catch (error) {
+        console.error("Erro ao reescrever descrição com IA:", error);
+        let errorMessage = "Ocorreu um erro ao contatar a IA. Verifique sua conexão e a chave de API.";
+        if (error instanceof Error && error.message.includes('API key not valid')) {
+            errorMessage = "A chave de API configurada não é válida. Por favor, contate o administrador.";
+        }
+        return { rewrittenText: null, error: errorMessage };
+    }
+  };
+
+  const handleApplyRewrite = (newDescription: string) => {
+      setFormData(prev => ({ ...prev, detailedDescription: newDescription }));
+      setToast({ message: 'Descrição atualizada com a sugestão da IA!', type: 'success' });
+  };
 
 
   const submitButtonText = editingReportId ? 'Atualizar Relatório' : 'Registrar Ocorrência';
@@ -1289,7 +1326,7 @@ function App() {
                     onDownloadPdf={handleDownloadPdf}
                     onExportExcel={handleExportExcel}
                     showExportOptions={showExportOptions}
-                    editingReportId={editingReportId}
+                    isFormDirty={isFormDirty}
                   />
                 </>
               )}
@@ -1371,6 +1408,9 @@ function App() {
           onApplyAllSuggestions={handleApplyAllSuggestions}
           isLoading={isAnalyzing}
           error={geminiError}
+          currentDescription={formData.detailedDescription}
+          onRewrite={handleRewriteDescription}
+          onApplyRewrite={handleApplyRewrite}
         />
         
         {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}

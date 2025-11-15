@@ -48,11 +48,15 @@ const TabEvidencias: React.FC<TabEvidenciasProps> = ({ formData, handleChange, o
             type="button"
             onClick={handleCopy}
             disabled={!formData.immediateActions || copied}
-            className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 disabled:opacity-60 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+            className={`px-3 py-1.5 text-xs font-medium rounded-md disabled:opacity-60 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5 ${
+                copied 
+                ? 'bg-green-100 text-green-700' 
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
           >
             {copied ? (
               <>
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-600" viewBox="0 0 20 20" fill="currentColor">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-700" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                 </svg>
                 <span>Copiado!</span>

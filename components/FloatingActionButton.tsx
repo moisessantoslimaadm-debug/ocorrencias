@@ -6,7 +6,7 @@ interface FloatingActionButtonProps {
   onDownloadPdf: () => void;
   onExportExcel: () => void;
   showExportOptions: boolean;
-  editingReportId?: string;
+  isFormDirty: boolean;
 }
 
 const FabAction: React.FC<{ onClick: () => void; label: string; children: React.ReactNode; disabled?: boolean }> = ({ onClick, label, children, disabled }) => (
@@ -33,7 +33,7 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
   onDownloadPdf,
   onExportExcel,
   showExportOptions,
-  editingReportId,
+  isFormDirty,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const fabRef = useRef<HTMLDivElement>(null);
@@ -76,7 +76,7 @@ const FloatingActionButton: React.FC<FloatingActionButtonProps> = ({
             </>
         )}
 
-        {editingReportId && (
+        {isFormDirty && (
             <FabAction onClick={onSaveDraft} label="Salvar Rascunho">
                 {/* Save Icon */}
                 <svg className="h-6 w-6 text-blue-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v12a1 1 0 01-1.293.959l-4.5-2.25a1 1 0 00-.914 0l-4.5 2.25A1 1 0 015 16V4z" /></svg>

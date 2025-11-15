@@ -8,71 +8,100 @@ interface GeminiAnalysisModalProps {
   onApplyAllSuggestions: (result: GeminiAnalysisResult) => void;
   isLoading: boolean;
   error: string | null;
+  currentDescription: string;
+  onRewrite: (description: string) => Promise<{ rewrittenText: string | null; error: string | null }>;
+  onApplyRewrite: (newDescription: string) => void;
 }
 
-const GeminiAnalysisModal: React.FC<GeminiAnalysisModalProps> = ({ isOpen, onClose, analysisResult, onApplyAllSuggestions, isLoading, error }) => {
+const GeminiAnalysisModal: React.FC<GeminiAnalysisModalProps> = ({ 
+    isOpen, 
+    onClose, 
+    analysisResult, 
+    onApplyAllSuggestions, 
+    isLoading, 
+    error,
+    currentDescription,
+    onRewrite,
+    onApplyRewrite
+}) => {
   const modalRef = useRef<HTMLDivElement>(null);
   const previouslyFocusedElement = useRef<HTMLElement | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [isRewriting, setIsRewriting] = useState(false);
+  const [rewrittenText, setRewrittenText] = useState<string | null>(null);
+  const [rewriteError, setRewriteError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
-      previouslyFocusedElement.current = document.activeElement as HTMLElement;
-      
-      const focusableElements = modalRef.current?.querySelectorAll<HTMLElement>(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-      );
-      const firstElement = focusableElements?.[0];
-      // Delay focus slightly to ensure modal is fully rendered and content loaded
-      setTimeout(() => firstElement?.focus(), 100);
+        // Reset rewrite state when modal is opened
+        setRewrittenText(null);
+        setRewriteError(null);
+        setIsRewriting(false);
 
-      const handleKeyDown = (event: KeyboardEvent) => {
-        if (event.key === 'Escape') {
-          onClose();
-        }
-        if (event.key === 'Tab') {
-          if (!focusableElements || focusableElements.length === 0) return;
+        previouslyFocusedElement.current = document.activeElement as HTMLElement;
+        const focusableElements = modalRef.current?.querySelectorAll<HTMLElement>(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        const firstElement = focusableElements?.[0];
+        setTimeout(() => firstElement?.focus(), 100);
 
-          const firstElement = focusableElements[0];
-          const lastElement = focusableElements[focusableElements.length - 1];
-
-          if (event.shiftKey) { // Shift + Tab
-            if (document.activeElement === firstElement) {
-              lastElement.focus();
-              event.preventDefault();
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                onClose();
             }
-          } else { // Tab
-            if (document.activeElement === lastElement) {
-              firstElement.focus();
-              event.preventDefault();
+            if (event.key === 'Tab' && focusableElements) {
+                const firstElement = focusableElements[0];
+                const lastElement = focusableElements[focusableElements.length - 1];
+                if (event.shiftKey) {
+                    if (document.activeElement === firstElement) { lastElement.focus(); event.preventDefault(); }
+                } else {
+                    if (document.activeElement === lastElement) { firstElement.focus(); event.preventDefault(); }
+                }
             }
-          }
-        }
-      };
+        };
 
-      document.addEventListener('keydown', handleKeyDown);
-
-      return () => {
-        document.removeEventListener('keydown', handleKeyDown);
-        previouslyFocusedElement.current?.focus();
-      };
+        document.addEventListener('keydown', handleKeyDown);
+        return () => {
+            document.removeEventListener('keydown', handleKeyDown);
+            previouslyFocusedElement.current?.focus();
+        };
     }
   }, [isOpen, onClose]);
 
+
   const handleCopyToClipboard = (text: string, fieldName: string) => {
     if (!navigator.clipboard) {
-      // Fallback for older browsers
       alert("A função de copiar não é suportada neste navegador.");
       return;
     }
     navigator.clipboard.writeText(text).then(() => {
         setCopiedField(fieldName);
-        setTimeout(() => setCopiedField(null), 2000); // Reset after 2 seconds
+        setTimeout(() => setCopiedField(null), 2000);
     }).catch(err => {
         console.error("Falha ao copiar texto: ", err);
         alert("Não foi possível copiar o texto.");
     });
   };
+
+  const handleRewriteClick = async () => {
+    setIsRewriting(true);
+    setRewriteError(null);
+    setRewrittenText(null);
+    const result = await onRewrite(currentDescription);
+    if (result.error) {
+        setRewriteError(result.error);
+    } else {
+        setRewrittenText(result.rewrittenText);
+    }
+    setIsRewriting(false);
+  };
+
+  const handleApplyRewriteClick = () => {
+    if (rewrittenText) {
+        onApplyRewrite(rewrittenText);
+    }
+  };
+
 
   if (!isOpen) {
     return null;
@@ -162,9 +191,31 @@ const GeminiAnalysisModal: React.FC<GeminiAnalysisModalProps> = ({ isOpen, onClo
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <h4 className="text-base font-semibold text-gray-800">Sugestões de Ações Imediatas</h4>
-                   <button onClick={() => handleCopyToClipboard(analysisResult.immediateActions, 'actions')} className="px-2.5 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors">
-                     {copiedField === 'actions' ? 'Copiado!' : 'Copiar'}
-                   </button>
+                   <button 
+                        onClick={() => handleCopyToClipboard(analysisResult.immediateActions, 'actions')} 
+                        disabled={copiedField === 'actions'}
+                        className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 ${
+                            copiedField === 'actions' 
+                            ? 'bg-green-100 text-green-700' 
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                    >
+                        {copiedField === 'actions' ? (
+                            <>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                                <span>Copiado!</span>
+                            </>
+                        ) : (
+                            <>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                                <span>Copiar</span>
+                            </>
+                        )}
+                    </button>
                 </div>
                 <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-md border">{analysisResult.immediateActions}</p>
               </div>
@@ -172,14 +223,80 @@ const GeminiAnalysisModal: React.FC<GeminiAnalysisModalProps> = ({ isOpen, onClo
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <h4 className="text-base font-semibold text-gray-800">Sugestões de Encaminhamentos</h4>
-                    <button onClick={() => handleCopyToClipboard(analysisResult.referrals, 'referrals')} className="px-2.5 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors">
-                      {copiedField === 'referrals' ? 'Copiado!' : 'Copiar'}
+                    <button 
+                        onClick={() => handleCopyToClipboard(analysisResult.referrals, 'referrals')} 
+                        disabled={copiedField === 'referrals'}
+                        className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 ${
+                            copiedField === 'referrals' 
+                            ? 'bg-green-100 text-green-700' 
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                    >
+                        {copiedField === 'referrals' ? (
+                            <>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                                <span>Copiado!</span>
+                            </>
+                        ) : (
+                            <>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                                <span>Copiar</span>
+                            </>
+                        )}
                     </button>
                 </div>
                 <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-md border">{analysisResult.referrals}</p>
               </div>
             </div>
           )}
+
+          {/* New Rewrite Section */}
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <h4 className="text-base font-semibold text-gray-800 mb-2">Aprimorar Descrição com IA</h4>
+            <p className="text-sm text-gray-500 mb-4">Peça para a IA reescrever a descrição do fato de forma mais clara, objetiva e profissional para o relatório.</p>
+            
+            {!rewrittenText && (
+                <button
+                    type="button"
+                    onClick={handleRewriteClick}
+                    disabled={isRewriting || !currentDescription}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-md hover:bg-emerald-700 disabled:bg-emerald-400 disabled:cursor-not-allowed transition-colors"
+                >
+                    {isRewriting && <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>}
+                    <span>{isRewriting ? 'Gerando...' : 'Gerar nova versão'}</span>
+                </button>
+            )}
+
+            {rewriteError && (
+                <p className="mt-2 text-sm text-red-600">{rewriteError}</p>
+            )}
+            
+            {rewrittenText && (
+                <div className="space-y-3 mt-2">
+                    <label htmlFor="rewritten-text-area" className="text-sm font-medium text-gray-700">Versão sugerida pela IA (editável):</label>
+                    <textarea 
+                        id="rewritten-text-area"
+                        value={rewrittenText}
+                        onChange={(e) => setRewrittenText(e.target.value)}
+                        rows={6}
+                        className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-emerald-500 focus:border-emerald-500"
+                    />
+                    <div className="flex justify-end gap-2">
+                        <button type="button" onClick={() => { setRewrittenText(null); setRewriteError(null); }} className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200">
+                            Descartar
+                        </button>
+                        <button type="button" onClick={handleApplyRewriteClick} className="px-3 py-1.5 text-xs font-medium text-white bg-emerald-600 rounded-md hover:bg-emerald-700">
+                            Aplicar esta versão
+                        </button>
+                    </div>
+                </div>
+            )}
+          </div>
+
         </div>
         <div className="bg-gray-50 px-6 py-3 flex flex-col-reverse sm:flex-row sm:justify-end gap-3 rounded-b-lg">
           <button

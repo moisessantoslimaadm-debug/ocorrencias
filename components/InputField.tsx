@@ -36,6 +36,25 @@ const formatPhoneNumber = (value: string): string => {
   return `(${phoneNumber.slice(0, 2)}) ${phoneNumber.slice(2, 7)}-${phoneNumber.slice(7)}`;
 };
 
+const formatCpf = (value: string): string => {
+  if (!value) return value;
+
+  // Remove non-digit chars
+  let cpf = value.replace(/\D/g, '');
+
+  // Limit to 11 digits
+  cpf = cpf.substring(0, 11);
+
+  // Add dot after 3rd digit
+  cpf = cpf.replace(/(\d{3})(\d)/, '$1.$2');
+  // Add dot after 6th digit
+  cpf = cpf.replace(/(\d{3})\.(\d{3})(\d)/, '$1.$2.$3');
+  // Add hyphen after 9th digit
+  cpf = cpf.replace(/(\d{3})\.(\d{3})\.(\d{3})(\d{1,2})/, '$1.$2.$3-$4');
+
+  return cpf;
+};
+
 
 const InputField: React.FC<InputFieldProps> = ({ id, name, label, type, value, onChange, onBlur, placeholder, className = '', readOnly = false, error, description, ariaLabel, tooltip }) => {
   const validationClasses = error
@@ -49,6 +68,16 @@ const InputField: React.FC<InputFieldProps> = ({ id, name, label, type, value, o
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (name === 'guardianPhone') {
       const formattedValue = formatPhoneNumber(e.target.value);
+      const syntheticEvent = {
+        ...e,
+        target: {
+          ...e.target,
+          value: formattedValue,
+        },
+      };
+      onChange(syntheticEvent as React.ChangeEvent<HTMLInputElement>);
+    } else if (name.toLowerCase().includes('cpf')) {
+      const formattedValue = formatCpf(e.target.value);
       const syntheticEvent = {
         ...e,
         target: {
