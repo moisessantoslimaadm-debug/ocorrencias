@@ -11,9 +11,9 @@ interface AppHeaderProps {
 
 const AppHeader: React.FC<AppHeaderProps> = ({ onLogout, onNavigateToDashboard, onToggleHistory, currentView, onPrint, showPrintButton }) => {
   return (
-    <header className="bg-emerald-700 p-4 sm:p-6 text-white flex justify-between items-center">
+    <header className="bg-[#90EE90] p-4 sm:p-6 text-gray-800 flex justify-between items-center">
       <div className="flex items-center gap-4">
-        <div className="flex-shrink-0 bg-white/20 p-2 rounded-lg">
+        <div className="flex-shrink-0 bg-emerald-700/90 p-2 rounded-lg">
           <svg 
               xmlns="http://www.w3.org/2000/svg" 
               className="h-8 w-8 text-white" 
@@ -31,14 +31,14 @@ const AppHeader: React.FC<AppHeaderProps> = ({ onLogout, onNavigateToDashboard, 
         </div>
         <div>
           <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Registro de Ocorrência Escolar</h1>
-          <p className="text-emerald-200 mt-1 text-sm sm:text-base">Secretaria Municipal de Educação – Itaberaba/BA</p>
+          <p className="text-emerald-800 mt-1 text-sm sm:text-base">Secretaria Municipal de Educação – Itaberaba/BA</p>
         </div>
       </div>
       <div className="flex items-center gap-2 sm:gap-3">
         {currentView === 'form' && (
              <button
                 onClick={onNavigateToDashboard}
-                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-emerald-600 rounded-md hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-emerald-700 focus:ring-white transition-colors"
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-emerald-700 rounded-md hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#90EE90] focus:ring-white transition-colors"
                 aria-label="Voltar para o Painel"
                 title="Voltar para o Painel"
             >
@@ -49,7 +49,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({ onLogout, onNavigateToDashboard, 
          {showPrintButton && (
              <button
                 onClick={onPrint}
-                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-emerald-600 rounded-md hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-emerald-700 focus:ring-white transition-colors"
+                className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-emerald-700 rounded-md hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#90EE90] focus:ring-white transition-colors"
                 aria-label="Imprimir Relatório"
                 title="Imprimir Relatório"
             >
@@ -61,7 +61,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({ onLogout, onNavigateToDashboard, 
         )}
          <button
             onClick={onToggleHistory}
-            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-emerald-600 rounded-md hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-emerald-700 focus:ring-white transition-colors"
+            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-emerald-700 rounded-md hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#90EE90] focus:ring-white transition-colors"
             aria-label="Ver Histórico"
             title="Ver Histórico"
         >
@@ -70,7 +70,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({ onLogout, onNavigateToDashboard, 
         </button>
         <button 
           onClick={onLogout}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-md hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-emerald-700 focus:ring-white transition-colors"
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emerald-700 rounded-md hover:bg-emerald-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#90EE90] focus:ring-white transition-colors"
           aria-label="Sair da plataforma"
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">

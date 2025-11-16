@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { GoogleGenAI, Type } from "@google/genai";
 import type { OccurrenceReport, SavedReport, ReportImage, GeminiAnalysisResult, Modification, FormErrors, ReportStatus } from './types';
@@ -1365,7 +1366,7 @@ function App() {
           variant="danger"
           confirmText="Limpar"
         >
-          Você tem certeza que deseja limpar todos os campos do formulário? Qualquer rascunho não salvo será perdido.
+          Você tem certeza que deseja descartar todas as alterações não salvas e limpar o formulário? Qualquer rascunho não salvo será perdido.
         </ConfirmationModal>
 
         <ConfirmationModal

@@ -296,7 +296,14 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
 
         if (searchTerm && aiFilteredIds === null) {
           const lowerCaseSearch = searchTerm.toLowerCase();
-          return report.studentName?.toLowerCase().includes(lowerCaseSearch);
+          return (
+            report.studentName?.toLowerCase().includes(lowerCaseSearch) ||
+            report.schoolUnit?.toLowerCase().includes(lowerCaseSearch) ||
+            report.detailedDescription?.toLowerCase().includes(lowerCaseSearch) ||
+            report.occurrenceLocation?.toLowerCase().includes(lowerCaseSearch) ||
+            report.reporterName?.toLowerCase().includes(lowerCaseSearch) ||
+            report.peopleInvolved?.toLowerCase().includes(lowerCaseSearch)
+          );
         }
         return true;
       });
@@ -381,6 +388,54 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
 
   const handleExportFilteredExcel = () => {
     createExcelExport(sortedAndFilteredReports, 'historico_filtrado_ocorrencias');
+  };
+
+  const handleExportFilteredCsv = () => {
+    if (sortedAndFilteredReports.length === 0) {
+        onSetToast({ message: 'Nenhum relatório filtrado para exportar.', type: 'info' });
+        return;
+    }
+
+    const headers = [
+      "ID", "Status", "Data Salvo", "Unidade Escolar", "Município", "UF",
+      "Nome Aluno", "Data Nasc. Aluno", "Matrícula Aluno",
+      "E-mail Responsável", "Data e Hora Ocorrência", "Local Ocorrência", "Gravidade",
+      "Descrição Detalhada", "Tipos de Ocorrência"
+    ];
+
+    const escapeCsvField = (field: any): string => {
+        const stringField = String(field ?? '').replace(/"/g, '""');
+        if (stringField.includes(',') || stringField.includes('\n') || stringField.includes('"')) {
+            return `"${stringField}"`;
+        }
+        return stringField;
+    };
+
+    const data = sortedAndFilteredReports.map(r => {
+        const checkedTypes = Object.entries(r.occurrenceTypes)
+            .filter(([, isChecked]) => isChecked)
+            .map(([key]) => occurrenceTypeLabelsMap[key] || key)
+            .join('; ');
+
+        return [
+            r.id, r.status, new Date(r.savedAt).toLocaleString('pt-BR'),
+            r.schoolUnit, r.municipality, r.uf,
+            r.studentName, r.studentDob, r.studentRegistration,
+            r.guardianEmail, r.occurrenceDateTime.replace('T', ' '), r.occurrenceLocation,
+            r.occurrenceSeverity, r.detailedDescription, checkedTypes
+        ].map(escapeCsvField).join(',');
+    });
+
+    const csvContent = [headers.join(','), ...data].join('\n');
+    const blob = new Blob([`\uFEFF${csvContent}`], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    
+    link.href = URL.createObjectURL(blob);
+    link.download = 'historico_filtrado_ocorrencias.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
   };
 
   const handleExportAllExcel = () => {
@@ -518,7 +573,7 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
               <div className="relative">
                 <input
                   type="search"
-                  placeholder='Busca com IA (ex: "bullying em maio")'
+                  placeholder="Buscar por nome, local, descrição..."
                   value={searchTerm}
                   onChange={handleSearchChange}
                   onKeyDown={(e) => e.key === 'Enter' && handleSearchSubmit(searchTerm)}
@@ -530,8 +585,10 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
                 <button 
                     onClick={() => handleSearchSubmit(searchTerm)}
                     className="absolute inset-y-0 right-0 flex items-center px-3 bg-emerald-600 text-white text-xs font-bold rounded-r-md hover:bg-emerald-700"
+                    aria-label="Buscar com Inteligência Artificial"
+                    title="Buscar com IA (Linguagem Natural)"
                 >
-                    BUSCAR
+                    IA
                 </button>
               </div>
                {recentSearches.length > 0 && (
@@ -683,6 +740,7 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
             <h3 className="text-sm font-semibold text-gray-600">Exportar e Importar</h3>
             <div className="grid grid-cols-2 gap-2 text-sm">
                 <button onClick={handleExportFilteredExcel} disabled={sortedAndFilteredReports.length === 0} className="p-2 bg-white border rounded-md hover:bg-gray-100 disabled:opacity-50">Exportar Filtrados (XLSX)</button>
+                <button onClick={handleExportFilteredCsv} disabled={sortedAndFilteredReports.length === 0} className="p-2 bg-white border rounded-md hover:bg-gray-100 disabled:opacity-50">Exportar Filtrados (CSV)</button>
                 <button onClick={handleExportAllExcel} disabled={reports.length === 0} className="p-2 bg-white border rounded-md hover:bg-gray-100 disabled:opacity-50">Exportar Todos (XLSX)</button>
                 <button onClick={handleExportJson} disabled={reports.length === 0} className="p-2 bg-white border rounded-md hover:bg-gray-100 disabled:opacity-50">Backup (JSON)</button>
                 <button onClick={handleImportClick} className="p-2 bg-white border rounded-md hover:bg-gray-100">Importar Backup (JSON)</button>

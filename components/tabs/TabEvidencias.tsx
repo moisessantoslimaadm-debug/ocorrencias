@@ -43,32 +43,26 @@ const TabEvidencias: React.FC<TabEvidenciasProps> = ({ formData, handleChange, o
       <SectionHeader title="7. PROVIDÊNCIAS IMEDIATAS ADOTADAS" />
       <div className="bg-white p-4 rounded-b-md border border-t-0 border-gray-200">
         <TextAreaField id="immediateActions" name="immediateActions" label="" value={formData.immediateActions} onChange={handleChange} tooltip={<Tooltip text="Descreva as primeiras ações tomadas pela escola assim que tomou conhecimento do fato. Ex: separar os envolvidos, contatar os responsáveis, etc." />} />
-        <div className="flex justify-end mt-2">
+        <div className="flex justify-end items-center mt-2 gap-3">
+            <div 
+                className={`flex items-center gap-1 text-sm text-green-700 transition-opacity duration-300 ${copied ? 'opacity-100' : 'opacity-0'}`}
+                aria-live="polite"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+                <span>Copiado!</span>
+            </div>
           <button
             type="button"
             onClick={handleCopy}
-            disabled={!formData.immediateActions || copied}
-            className={`px-3 py-1.5 text-xs font-medium rounded-md disabled:opacity-60 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5 ${
-                copied 
-                ? 'bg-green-100 text-green-700' 
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+            disabled={!formData.immediateActions}
+            className="px-3 py-1.5 text-xs font-medium rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-60 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
           >
-            {copied ? (
-              <>
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-700" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                </svg>
-                <span>Copiado!</span>
-              </>
-            ) : (
-              <>
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                </svg>
-                <span>Copiar Texto</span>
-              </>
-            )}
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+            <span>Copiar Texto</span>
           </button>
         </div>
       </div>

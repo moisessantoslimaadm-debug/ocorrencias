@@ -191,31 +191,26 @@ const GeminiAnalysisModal: React.FC<GeminiAnalysisModalProps> = ({
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <h4 className="text-base font-semibold text-gray-800">Sugestões de Ações Imediatas</h4>
-                   <button 
-                        onClick={() => handleCopyToClipboard(analysisResult.immediateActions, 'actions')} 
-                        disabled={copiedField === 'actions'}
-                        className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 ${
-                            copiedField === 'actions' 
-                            ? 'bg-green-100 text-green-700' 
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                        }`}
-                    >
-                        {copiedField === 'actions' ? (
-                            <>
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                </svg>
-                                <span>Copiado!</span>
-                            </>
-                        ) : (
-                            <>
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                </svg>
-                                <span>Copiar</span>
-                            </>
-                        )}
-                    </button>
+                   <div className="flex items-center gap-3">
+                        <div 
+                            className={`flex items-center gap-1 text-sm text-green-700 transition-opacity duration-300 ${copiedField === 'actions' ? 'opacity-100' : 'opacity-0'}`}
+                            aria-live="polite"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                            <span>Copiado!</span>
+                        </div>
+                        <button 
+                            onClick={() => handleCopyToClipboard(analysisResult.immediateActions, 'actions')} 
+                            className="px-2.5 py-1 text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
+                            <span>Copiar Texto</span>
+                        </button>
+                   </div>
                 </div>
                 <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-md border">{analysisResult.immediateActions}</p>
               </div>
@@ -223,31 +218,26 @@ const GeminiAnalysisModal: React.FC<GeminiAnalysisModalProps> = ({
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <h4 className="text-base font-semibold text-gray-800">Sugestões de Encaminhamentos</h4>
-                    <button 
-                        onClick={() => handleCopyToClipboard(analysisResult.referrals, 'referrals')} 
-                        disabled={copiedField === 'referrals'}
-                        className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 ${
-                            copiedField === 'referrals' 
-                            ? 'bg-green-100 text-green-700' 
-                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                        }`}
-                    >
-                        {copiedField === 'referrals' ? (
-                            <>
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                </svg>
-                                <span>Copiado!</span>
-                            </>
-                        ) : (
-                            <>
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                </svg>
-                                <span>Copiar</span>
-                            </>
-                        )}
-                    </button>
+                    <div className="flex items-center gap-3">
+                        <div 
+                            className={`flex items-center gap-1 text-sm text-green-700 transition-opacity duration-300 ${copiedField === 'referrals' ? 'opacity-100' : 'opacity-0'}`}
+                            aria-live="polite"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                            <span>Copiado!</span>
+                        </div>
+                        <button 
+                            onClick={() => handleCopyToClipboard(analysisResult.referrals, 'referrals')} 
+                            className="px-2.5 py-1 text-xs font-medium rounded-md transition-colors flex items-center gap-1.5 bg-gray-100 text-gray-600 hover:bg-gray-200"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
+                            <span>Copiar Texto</span>
+                        </button>
+                    </div>
                 </div>
                 <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-md border">{analysisResult.referrals}</p>
               </div>
