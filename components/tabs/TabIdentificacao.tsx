@@ -55,7 +55,7 @@ const TabIdentificacao: React.FC<TabIdentificacaoProps> = ({ formData, handleCha
               <StudentPhotoUpload photo={formData.studentPhoto} onPhotoChange={onPhotoChange} />
           </div>
           <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <InputField id="studentName" name="studentName" label="Nome completo" type="text" value={formData.studentName} onChange={handleChange} className="sm:col-span-2" error={errors.studentName} tooltip={<Tooltip text="Nome completo do aluno, sem abreviações." />} />
+              <InputField id="studentName" name="studentName" label="Nome completo" type="text" value={formData.studentName} onChange={handleChange} className="sm:col-span-2" error={errors.studentName} tooltip={<Tooltip text="Nome completo do aluno, sem abreviações (Ex: João Silva Santos)." />} />
               <InputField id="studentDob" name="studentDob" label="Data de nascimento" type="date" value={formData.studentDob} onChange={handleChange} error={errors.studentDob} tooltip={<Tooltip text="Data em que o aluno nasceu." />} />
               <InputField id="studentAge" name="studentAge" label="Idade (anos)" type="number" value={formData.studentAge} onChange={handleChange} readOnly tooltip={<Tooltip text="Calculado automaticamente a partir da data de nascimento." />} />
               <InputField id="studentRegistration" name="studentRegistration" label="Nº de matrícula" type="text" value={formData.studentRegistration} onChange={handleChange} error={errors.studentRegistration} tooltip={<Tooltip text="Use apenas letras, números e hífens. Máximo de 20 caracteres." />} />

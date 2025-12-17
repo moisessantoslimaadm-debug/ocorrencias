@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { GoogleGenAI, Type } from "@google/genai";
 import type { OccurrenceReport, SavedReport, ReportImage, GeminiAnalysisResult, Modification, FormErrors, ReportStatus } from './types';
@@ -46,26 +47,18 @@ const validateAddress = (address: string): string => {
     return '';
   }
 
-  // Check for minimum length first, as a very short address will fail other checks anyway.
+  // Check for minimum length to avoid very vague inputs.
   if (trimmedAddress.length < 15) {
-    return 'Endereço muito curto. Por favor, forneça mais detalhes.';
+    return 'Endereço muito curto. Por favor, forneça mais detalhes (rua, bairro, cidade, UF).';
   }
 
-  const hasNumber = /\d/.test(trimmedAddress);
-  if (!hasNumber) {
-    return 'Endereço inválido. O número da residência parece estar faltando.';
-  }
-
+  // A comma is a good indicator of a structured address.
   const hasComma = /,/.test(trimmedAddress);
   if (!hasComma) {
-    return 'Endereço inválido. Utilize vírgulas para separar rua, bairro, cidade, etc.';
+    return 'Endereço parece incompleto. Utilize vírgulas para separar rua, bairro, cidade, etc.';
   }
 
-  const hasZipCode = /\d{5}-?\d{3}/.test(trimmedAddress);
-  if (!hasZipCode) {
-    return 'Endereço inválido. O CEP (formato 12345-678) parece estar faltando.';
-  }
-  
+  // The state (UF) is essential for a valid Brazilian address.
   const hasUF = /(,|-|\s)\b[A-Z]{2}\b/i.test(trimmedAddress);
   if (!hasUF) {
     return 'Endereço inválido. A sigla do estado (UF, ex: BA) parece estar faltando.';
@@ -85,7 +78,9 @@ export const FIELD_TO_TAB_MAP: { [key in keyof FormErrors]?: number } = {
   occurrenceDateTime: 1, occurrenceLocation: 1, occurrenceSeverity: 1,
   occurrenceTypes: 1, occurrenceOtherDescription: 1, detailedDescription: 1,
   // Tab 3: Finalização
-  reporterName: 3, reporterDate: 3, guardianSignatureDate: 3, socialWorkerSignatureDate: 3
+  reporterName: 3, reporterDate: 3, 
+  guardianSignatureName: 3, guardianSignatureDate: 3, 
+  socialWorkerSignatureName: 3, socialWorkerSignatureDate: 3
 };
 
 export const calculateAge = (dob: string): string => {
@@ -506,6 +501,21 @@ function App() {
         newErrors[field] = 'A data não pode ser no futuro.';
       }
     });
+
+    // Signature validations
+    if (formData.guardianSignatureName && !formData.guardianSignatureDate) {
+      newErrors.guardianSignatureDate = 'A data deve ser preenchida se o nome estiver preenchido.';
+    }
+    if (!formData.guardianSignatureName && formData.guardianSignatureDate) {
+      newErrors.guardianSignatureName = 'O nome deve ser preenchido se a data estiver preenchida.';
+    }
+
+    if (formData.socialWorkerSignatureName && !formData.socialWorkerSignatureDate) {
+      newErrors.socialWorkerSignatureDate = 'A data deve ser preenchida se o nome estiver preenchido.';
+    }
+    if (!formData.socialWorkerSignatureName && formData.socialWorkerSignatureDate) {
+      newErrors.socialWorkerSignatureName = 'O nome deve ser preenchido se a data estiver preenchida.';
+    }
 
     return newErrors;
   }, [formData]);

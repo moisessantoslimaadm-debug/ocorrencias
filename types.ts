@@ -79,7 +79,6 @@ export interface GeminiAnalysisResult {
   severity: 'Leve' | 'Moderada' | 'Grave' | string;
 }
 
-// FIX: Add TrendInsight interface for AI trend analysis feature.
 export interface TrendInsight {
   title: string;
   suggestion: string;
