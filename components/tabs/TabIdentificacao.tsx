@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import type { OccurrenceReport, ReportImage, FormErrors } from '../../types';
 import SectionHeader from '../SectionHeader';
