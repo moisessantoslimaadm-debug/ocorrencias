@@ -57,10 +57,13 @@ const validateAddress = (address: string): string => {
     return 'Endereço parece incompleto. Utilize vírgulas para separar rua, bairro, cidade, etc.';
   }
 
-  // The state (UF) is essential for a valid Brazilian address.
-  const hasUF = /(,|-|\s)\b[A-Z]{2}\b/i.test(trimmedAddress);
-  if (!hasUF) {
-    return 'Endereço inválido. A sigla do estado (UF, ex: BA) parece estar faltando.';
+  // Strict validation for Brazilian states (UF)
+  // Check for word boundaries to avoid matching inside other words (e.g. "CASA" matching "SA")
+  const validUFs = /\b(AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO)\b/i;
+  const hasValidUF = validUFs.test(trimmedAddress);
+  
+  if (!hasValidUF) {
+    return 'Endereço inválido. A sigla do estado (UF) parece estar incorreta ou faltando (ex: BA, SP).';
   }
   
   return '';
@@ -106,7 +109,7 @@ const getDefaultFormData = (): OccurrenceReport & { id?: string } => {
     return {
       schoolUnit: '',
       schoolAddress: '',
-      schoolInejp: '',
+      schoolInep: '',
       schoolDirector: '',
       schoolPhone: '',
       schoolZone: '',
@@ -171,7 +174,8 @@ const getInitialDraftData = (): OccurrenceReport & { id?: string } => {
 
                  // Initialize new school fields if missing
                  if (!('schoolAddress' in parsedData)) parsedData.schoolAddress = '';
-                 if (!('schoolInejp' in parsedData)) parsedData.schoolInejp = '';
+                 // Migration: check for old typo 'schoolInejp'
+                 if (!('schoolInep' in parsedData)) parsedData.schoolInep = (parsedData as any).schoolInejp || '';
                  if (!('schoolDirector' in parsedData)) parsedData.schoolDirector = '';
                  if (!('schoolPhone' in parsedData)) parsedData.schoolPhone = '';
                  if (!('schoolZone' in parsedData)) parsedData.schoolZone = '';
@@ -224,7 +228,8 @@ const getInitialHistory = (): SavedReport[] => {
                         status: report.status || 'Novo',
                          // Initialize new fields
                          schoolAddress: report.schoolAddress || '',
-                         schoolInejp: report.schoolInejp || '',
+                         // Migration: check for old typo
+                         schoolInep: report.schoolInep || (report as any).schoolInejp || '',
                          schoolDirector: report.schoolDirector || '',
                          schoolPhone: report.schoolPhone || '',
                          schoolZone: report.schoolZone || '',
@@ -556,7 +561,7 @@ function App() {
     if (name === 'guardianPhone') {
         const phoneDigits = value.replace(/\D/g, '');
         if (phoneDigits.length > 0 && ![10, 11].includes(phoneDigits.length)) {
-            setErrors(prev => ({ ...prev, guardianPhone: 'O número de telefone deve ter 10 ou 11 dígitos, incluindo o DDD.';
+            setErrors(prev => ({ ...prev, guardianPhone: 'O número de telefone deve ter 10 ou 11 dígitos, incluindo o DDD.' }));
         } else {
             setErrors(prev => ({ ...prev, guardianPhone: undefined }));
         }
@@ -803,7 +808,7 @@ function App() {
           fillDate: currentDate,
           reporterDate: currentDate,
           schoolAddress: reportToLoad.schoolAddress || '',
-          schoolInejp: reportToLoad.schoolInejp || '',
+          schoolInep: reportToLoad.schoolInep || (reportToLoad as any).schoolInejp || '',
           schoolDirector: reportToLoad.schoolDirector || '',
           schoolPhone: reportToLoad.schoolPhone || '',
           schoolZone: reportToLoad.schoolZone || '',
@@ -984,8 +989,9 @@ function App() {
       ["Unidade Escolar", reportForExport.schoolUnit],
       ["Endereço da Escola", reportForExport.schoolAddress],
       ["Diretor(a)", reportForExport.schoolDirector],
-      ["INEP", reportForExport.schoolInejp],
+      ["INEP", reportForExport.schoolInep],
       ["Telefone da Escola", reportForExport.schoolPhone],
+      ["Zona", reportForExport.schoolZone],
       ["Município", reportForExport.municipality],
       ["UF", reportForExport.uf],
       ["--- DADOS DO ALUNO ---", ""],
@@ -1384,6 +1390,7 @@ function App() {
           onImportReports={handleImportReports}
           onStatusChange={handleStatusChange}
           onClose={handleToggleHistory}
+          isOpen={isHistoryPanelOpen}
           currentReportId={editingReportId}
           onSetToast={setToast}
         />

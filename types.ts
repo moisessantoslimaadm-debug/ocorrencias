@@ -27,7 +27,7 @@ export interface OccurrenceReport {
   // School Details
   schoolUnit: string;
   schoolAddress: string;
-  schoolInejp: string;
+  schoolInep: string;
   schoolDirector: string;
   schoolPhone: string;
   schoolZone: string;

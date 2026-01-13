@@ -61,7 +61,7 @@ const PrintableReport: React.FC<PrintableReportProps> = ({ reportData }) => {
   }
   
   const {
-    schoolUnit, schoolAddress, schoolInejp, schoolDirector, schoolPhone, schoolZone,
+    schoolUnit, schoolAddress, schoolInep, schoolDirector, schoolPhone, schoolZone,
     municipality, uf, fillDate, fillTime, status,
     studentName, studentPhoto, studentDob, studentAge, studentGrade, studentShift, studentRegistration,
     guardianName, guardianRelationship, guardianPhone, guardianEmail, guardianAddress,
@@ -134,7 +134,7 @@ const PrintableReport: React.FC<PrintableReportProps> = ({ reportData }) => {
                         {schoolDirector && <DataPair label="Diretor(a)" value={schoolDirector} />}
                         {schoolPhone && <DataPair label="Telefone" value={schoolPhone} />}
                     </div>
-                    {schoolInejp && <DataPair label="INEP" value={schoolInejp} />}
+                    {schoolInep && <DataPair label="INEP" value={schoolInep} />}
                     <DataPair label="Município / UF" value={`${municipality} / ${uf}`} />
                     <DataPair label="Data e Hora do Registro" value={`${formatDate(fillDate)} às ${fillTime}`} />
                 </dl>

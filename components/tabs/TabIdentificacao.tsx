@@ -27,7 +27,7 @@ const TabIdentificacao: React.FC<TabIdentificacaoProps> = ({ formData, handleCha
         setFormData(prev => ({
             ...prev,
             schoolAddress: selectedSchool.address,
-            schoolInejp: selectedSchool.inep,
+            schoolInep: selectedSchool.inep,
             schoolDirector: selectedSchool.director,
             schoolPhone: selectedSchool.phone,
             schoolZone: selectedSchool.zone,
@@ -75,11 +75,11 @@ const TabIdentificacao: React.FC<TabIdentificacaoProps> = ({ formData, handleCha
             readOnly 
           />
           <InputField 
-            id="schoolInejp" 
-            name="schoolInejp" 
+            id="schoolInep" 
+            name="schoolInep" 
             label="INEP" 
             type="text" 
-            value={formData.schoolInejp} 
+            value={formData.schoolInep} 
             onChange={handleChange} 
           />
            <InputField 
