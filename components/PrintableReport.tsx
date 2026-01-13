@@ -67,7 +67,7 @@ const PrintableReport: React.FC<PrintableReportProps> = ({ reportData }) => {
     guardianName, guardianRelationship, guardianPhone, guardianEmail, guardianAddress,
     occurrenceDateTime, occurrenceLocation, occurrenceSeverity, occurrenceTypes, occurrenceOtherDescription,
     detailedDescription, images, peopleInvolved, immediateActions, referralsMade, socialServiceObservation,
-    reporterName, reporterDate, guardianSignatureName, guardianSignatureDate, socialWorkerSignatureName, socialWorkerSignatureDate,
+    reporterName, contactReason, reporterDate, guardianSignatureName, guardianSignatureDate, socialWorkerSignatureName, socialWorkerSignatureDate,
     modificationHistory
   } = reportData;
 
@@ -230,6 +230,7 @@ const PrintableReport: React.FC<PrintableReportProps> = ({ reportData }) => {
                     <div className="pt-2 border-t border-gray-400">
                         <p className="font-semibold h-4">{reporterName || '\u00A0'}</p>
                         <p className="text-gray-600">Responsável pelo registro (Data: {formatDate(reporterDate) || '__/__/____'})</p>
+                        {contactReason && <p className="text-gray-500 mt-1 italic">Motivo: {contactReason}</p>}
                     </div>
                     <div className="pt-2 border-t border-gray-400">
                         <p className="font-semibold h-4">{guardianSignatureName || '\u00A0'}</p>

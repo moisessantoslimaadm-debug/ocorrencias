@@ -82,7 +82,7 @@ export const FIELD_TO_TAB_MAP: { [key in keyof FormErrors]?: number } = {
   occurrenceDateTime: 1, occurrenceLocation: 1, occurrenceSeverity: 1,
   occurrenceTypes: 1, occurrenceOtherDescription: 1, detailedDescription: 1,
   // Tab 3: Finalização
-  reporterName: 3, reporterDate: 3, 
+  reporterName: 3, contactReason: 3, reporterDate: 3, 
   guardianSignatureName: 3, guardianSignatureDate: 3, 
   socialWorkerSignatureName: 3, socialWorkerSignatureDate: 3
 };
@@ -152,6 +152,7 @@ const getDefaultFormData = (): OccurrenceReport & { id?: string } => {
       referralsMade: '',
       socialServiceObservation: '',
       reporterName: '',
+      contactReason: '',
       reporterDate: date,
       guardianSignatureName: '',
       guardianSignatureDate: '',
@@ -181,6 +182,9 @@ const getInitialDraftData = (): OccurrenceReport & { id?: string } => {
                  if (!('schoolDirector' in parsedData)) parsedData.schoolDirector = '';
                  if (!('schoolPhone' in parsedData)) parsedData.schoolPhone = '';
                  if (!('schoolZone' in parsedData)) parsedData.schoolZone = '';
+                 
+                 // Initialize contactReason if missing
+                 if (!('contactReason' in parsedData)) parsedData.contactReason = '';
 
                  // Migration for old drafts
                  if (!('occurrenceDateTime' in parsedData) && parsedData.occurrenceDate && parsedData.occurrenceTime) {
@@ -235,6 +239,7 @@ const getInitialHistory = (): SavedReport[] => {
                          schoolDirector: report.schoolDirector || '',
                          schoolPhone: report.schoolPhone || '',
                          schoolZone: report.schoolZone || '',
+                         contactReason: report.contactReason || '',
                     };
                 }) as SavedReport[];
             }
@@ -519,6 +524,7 @@ function App() {
 
     // Tab 3: Finalization
     checkMaxLength('reporterName', 150, 'Responsável pelo registro');
+    checkMaxLength('contactReason', 150, 'Motivo do Contato');
     
     const dateFields: (keyof OccurrenceReport)[] = ['reporterDate', 'guardianSignatureDate', 'socialWorkerSignatureDate'];
     dateFields.forEach(field => {
@@ -816,6 +822,7 @@ function App() {
           schoolDirector: reportToLoad.schoolDirector || '',
           schoolPhone: reportToLoad.schoolPhone || '',
           schoolZone: reportToLoad.schoolZone || '',
+          contactReason: reportToLoad.contactReason || '',
         };
         setFormData(loadedData);
         localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(loadedData));
@@ -1059,6 +1066,7 @@ function App() {
       ["Observações do Serviço Social", reportForExport.socialServiceObservation],
       ["--- FINALIZAÇÃO ---", ""],
       ["Responsável pelo Registro", reportForExport.reporterName],
+      ["Motivo do Contato", reportForExport.contactReason],
       ["Data do Registro", reportForExport.reporterDate],
       ["Assinatura Responsável Legal", reportForExport.guardianSignatureName],
       ["Data Ass. Resp. Legal", reportForExport.guardianSignatureDate],

@@ -74,6 +74,7 @@ export interface OccurrenceReport {
   socialServiceObservation: string;
 
   reporterName: string;
+  contactReason: string;
   reporterDate: string;
   guardianSignatureName: string;
   guardianSignatureDate: string;

@@ -1,5 +1,4 @@
 
-
 import React from 'react';
 import type { OccurrenceReport, FormErrors } from '../../types';
 import SectionHeader from '../SectionHeader';
@@ -19,6 +18,19 @@ interface TabOcorrenciaProps {
 }
 
 const TabOcorrencia: React.FC<TabOcorrenciaProps> = ({ formData, handleChange, onCheckboxChange, onAnalyze, isAnalyzing, errors }) => {
+  
+  const handleAnalyzeClick = () => {
+    if (!formData.detailedDescription || formData.detailedDescription.trim() === '') {
+      const textarea = document.getElementById('detailedDescription');
+      if (textarea) {
+        textarea.focus();
+        textarea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    } else {
+      onAnalyze();
+    }
+  };
+
   return (
     <div className="animate-fade-in-up space-y-4">
         <SectionHeader title="3. CARACTERIZAÇÃO DA OCORRÊNCIA" />
@@ -65,8 +77,8 @@ const TabOcorrencia: React.FC<TabOcorrenciaProps> = ({ formData, handleChange, o
           <div className="flex justify-end mb-2">
             <button 
               type="button" 
-              onClick={onAnalyze} 
-              disabled={!formData.detailedDescription || isAnalyzing}
+              onClick={handleAnalyzeClick} 
+              disabled={isAnalyzing}
               className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-emerald-700 bg-emerald-100 rounded-md hover:bg-emerald-200 disabled:bg-gray-200 disabled:text-gray-500 disabled:cursor-not-allowed transition-colors"
             >
                {isAnalyzing ? (

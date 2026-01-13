@@ -1,5 +1,4 @@
 
-
 import React from 'react';
 import type { OccurrenceReport, FormErrors } from '../../types';
 import SectionHeader from '../SectionHeader';
@@ -40,6 +39,7 @@ const TabFinalizacao: React.FC<TabFinalizacaoProps> = ({ formData, handleChange,
         <SectionHeader title={`${signatureSectionNumber}. ASSINATURA`} />
         <div className="bg-white p-4 rounded-b-md border border-t-0 border-gray-200 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
           <InputField id="reporterName" name="reporterName" label="Responsável pelo registro" type="text" value={formData.reporterName} onChange={handleChange} error={errors.reporterName} tooltip={<Tooltip text="Nome completo do profissional que está preenchendo este relatório." />} />
+          <InputField id="contactReason" name="contactReason" label="Motivo do Contato" type="text" value={formData.contactReason} onChange={handleChange} tooltip={<Tooltip text="Motivo pelo qual o contato foi realizado." />} />
           <InputField id="reporterDate" name="reporterDate" label="Data" type="date" value={formData.reporterDate} onChange={handleChange} description="Selecione ou digite a data." ariaLabel="Data do registro" error={errors.reporterDate} readOnly tooltip={<Tooltip text="Data de preenchimento do formulário. Preenchida automaticamente." />} />
           <InputField id="guardianSignatureName" name="guardianSignatureName" label="Responsável legal do aluno" type="text" value={formData.guardianSignatureName} onChange={handleChange} tooltip={<Tooltip text="Nome do responsável que tomará ciência do fato. Deixar em branco se a ciência for dada posteriormente." />} />
           <InputField id="guardianSignatureDate" name="guardianSignatureDate" label="Data" type="date" value={formData.guardianSignatureDate} onChange={handleChange} description="Selecione ou digite a data." ariaLabel="Data da assinatura do responsável legal" tooltip={<Tooltip text="Data em que o responsável tomou ciência. Preencher apenas quando a ciência for confirmada." />} />
