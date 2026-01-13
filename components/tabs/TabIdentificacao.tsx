@@ -72,7 +72,7 @@ const TabIdentificacao: React.FC<TabIdentificacaoProps> = ({ formData, handleCha
           <SelectField 
             id="schoolZone" 
             name="schoolZone" 
-            label="Zona" 
+            label="Zona *" 
             value={formData.schoolZone} 
             onChange={handleChange} 
             options={zoneOptions}
@@ -134,7 +134,7 @@ const TabIdentificacao: React.FC<TabIdentificacaoProps> = ({ formData, handleCha
               <InputField id="studentAge" name="studentAge" label="Idade (anos)" type="number" value={formData.studentAge} onChange={handleChange} readOnly tooltip={<Tooltip text="Calculado automaticamente a partir da data de nascimento." />} />
               
               {/* Novo Campo Adicionado */}
-              <InputField id="studentRegistration" name="studentRegistration" label="Nº de Matrícula" type="text" value={formData.studentRegistration} onChange={handleChange} error={errors.studentRegistration} tooltip={<Tooltip text="Use apenas letras, números e hífens. Máximo de 20 caracteres." />} />
+              <InputField id="studentRegistration" name="studentRegistration" label="Número de Matrícula" type="text" value={formData.studentRegistration} onChange={handleChange} error={errors.studentRegistration} tooltip={<Tooltip text="Use apenas letras, números e hífens. Máximo de 20 caracteres." />} />
               
               <InputField id="studentGrade" name="studentGrade" label="Ano/Série" type="text" value={formData.studentGrade} onChange={handleChange} tooltip={<Tooltip text="Ano ou série em que o aluno está matriculado. Ex: 9º Ano, 1º Ano E.M." />} />
               <InputField id="studentShift" name="studentShift" label="Turno" type="text" value={formData.studentShift} onChange={handleChange} tooltip={<Tooltip text="Turno em que o aluno estuda. Ex: Manhã, Tarde, Noite." />} />
