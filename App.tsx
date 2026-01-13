@@ -2,7 +2,7 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { GoogleGenAI, Type } from "@google/genai";
 import type { OccurrenceReport, SavedReport, ReportImage, GeminiAnalysisResult, Modification, FormErrors, ReportStatus, SchoolData } from './types';
-import { DRAFT_STORAGE_KEY, HISTORY_STORAGE_KEY, AUTH_SESSION_KEY, occurrenceTypeLabels, severityOptions } from './constants';
+import { DRAFT_STORAGE_KEY, HISTORY_STORAGE_KEY, AUTH_SESSION_KEY, occurrenceTypeLabels, severityOptions, VALID_ZONES } from './constants';
 
 
 // New Component Imports
@@ -74,7 +74,7 @@ const validateAddress = (address: string): string => {
 
 export const FIELD_TO_TAB_MAP: { [key in keyof FormErrors]?: number } = {
   // Tab 0: Identificação
-  schoolUnit: 0, municipality: 0, uf: 0,
+  schoolUnit: 0, municipality: 0, uf: 0, schoolZone: 0,
   studentName: 0, studentDob: 0, studentRegistration: 0,
   guardianAddress: 0,
   guardianPhone: 0, guardianEmail: 0,
@@ -183,6 +183,9 @@ const getInitialDraftData = (): OccurrenceReport & { id?: string } => {
                  if (!('schoolPhone' in parsedData)) parsedData.schoolPhone = '';
                  if (!('schoolZone' in parsedData)) parsedData.schoolZone = '';
                  
+                 // Initialize studentRegistration if missing
+                 if (!('studentRegistration' in parsedData)) parsedData.studentRegistration = '';
+                 
                  // Initialize contactReason if missing
                  if (!('contactReason' in parsedData)) parsedData.contactReason = '';
 
@@ -239,6 +242,7 @@ const getInitialHistory = (): SavedReport[] => {
                          schoolDirector: report.schoolDirector || '',
                          schoolPhone: report.schoolPhone || '',
                          schoolZone: report.schoolZone || '',
+                         studentRegistration: report.studentRegistration || '',
                          contactReason: report.contactReason || '',
                     };
                 }) as SavedReport[];
@@ -253,6 +257,7 @@ const getInitialHistory = (): SavedReport[] => {
     return seedData;
 };
 
+// Validation Helper for Student Registration
 const validateStudentRegistration = (value: string): string => {
   const maxLength = 20;
   if (!value) return '';
@@ -270,7 +275,7 @@ const EMAIL_REGEX = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return sessionStorage.getItem(AUTH_SESSION_KEY) === 'true';
+    return sessionStorage.getItem(AUTH_SESSION_KEY, ) === 'true';
   });
   const [showGoodbyeScreen, setShowGoodbyeScreen] = useState(false);
 
@@ -450,7 +455,7 @@ function App() {
     
     // --- REQUIRED FIELDS ---
     const requiredFields: (keyof OccurrenceReport)[] = [
-      'schoolUnit', 'municipality', 'uf', 'studentName', 'studentDob',
+      'schoolUnit', 'schoolZone', 'municipality', 'uf', 'studentName', 'studentDob',
       'occurrenceDateTime', 'occurrenceLocation', 'occurrenceSeverity',
       'detailedDescription', 'reporterName', 'reporterDate'
     ];
@@ -465,6 +470,11 @@ function App() {
 
     // Tab 0: Identification
     checkMaxLength('schoolUnit', 100, 'Unidade Escolar');
+    
+    if (formData.schoolZone && !VALID_ZONES.includes(formData.schoolZone)) {
+        newErrors.schoolZone = 'Zona inválida. Selecione uma zona válida.';
+    }
+
     checkMaxLength('municipality', 100, 'Município');
     if (formData.uf && !/^[A-Z]{2}$/.test(formData.uf)) {
         newErrors.uf = 'UF deve conter exatamente 2 letras maiúsculas.';
@@ -474,7 +484,8 @@ function App() {
     if (formData.studentDob && new Date(formData.studentDob) > endOfToday) {
         newErrors.studentDob = 'A data de nascimento não pode ser no futuro.';
     }
-
+    
+    // Validação da matrícula
     const registrationError = validateStudentRegistration(formData.studentRegistration);
     if (registrationError) {
         newErrors.studentRegistration = registrationError;
@@ -602,12 +613,12 @@ function App() {
       setErrors(prev => ({ ...prev, [fieldName]: undefined }));
     }
     clearTabError(fieldName);
-
+    
     if (name === 'studentRegistration') {
         const errorMessage = validateStudentRegistration(value);
         setErrors(prev => ({ ...prev, studentRegistration: errorMessage }));
     }
-    
+
     if (name === 'occurrenceDateTime') {
         if (new Date(value) > new Date()) {
             setErrors(prevErrors => ({ ...prevErrors, occurrenceDateTime: 'A data da ocorrência não pode ser no futuro.' }));
@@ -822,6 +833,7 @@ function App() {
           schoolDirector: reportToLoad.schoolDirector || '',
           schoolPhone: reportToLoad.schoolPhone || '',
           schoolZone: reportToLoad.schoolZone || '',
+          studentRegistration: reportToLoad.studentRegistration || '',
           contactReason: reportToLoad.contactReason || '',
         };
         setFormData(loadedData);

@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 interface SelectOption {
@@ -14,9 +15,10 @@ interface SelectFieldProps {
   options: SelectOption[];
   error?: string;
   className?: string;
+  tooltip?: React.ReactNode;
 }
 
-const SelectField: React.FC<SelectFieldProps> = ({ id, name, label, value, onChange, options, error, className = '' }) => {
+const SelectField: React.FC<SelectFieldProps> = ({ id, name, label, value, onChange, options, error, className = '', tooltip }) => {
   const validationClasses = error
     ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
     : 'border-gray-300 focus:ring-emerald-500 focus:border-emerald-500';
@@ -25,7 +27,10 @@ const SelectField: React.FC<SelectFieldProps> = ({ id, name, label, value, onCha
 
   return (
     <div className={`flex flex-col ${className}`}>
-      <label htmlFor={id} className="mb-1 text-sm font-medium text-gray-700">{label}</label>
+      <div className="flex items-center gap-1.5">
+        <label htmlFor={id} className="mb-1 text-sm font-medium text-gray-700">{label}</label>
+        {tooltip}
+      </div>
       <select
         id={id}
         name={name}

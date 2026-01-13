@@ -6,11 +6,13 @@ import InputField from '../InputField';
 import StudentPhotoUpload from '../StudentPhotoUpload';
 import Tooltip from '../Tooltip';
 import AutocompleteField from '../AutocompleteField';
+import SelectField from '../SelectField';
 import { schoolSuggestions, municipalitySuggestions, schoolsData } from '../../data/autocompleteData';
+import { VALID_ZONES } from '../../constants';
 
 interface TabIdentificacaoProps {
   formData: OccurrenceReport;
-  handleChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   handleBlur: (e: React.FocusEvent<HTMLInputElement>) => void;
   onPhotoChange: (photo: ReportImage | null) => void;
   onAutocompleteChange: (name: keyof OccurrenceReport, value: string) => void;
@@ -36,6 +38,8 @@ const TabIdentificacao: React.FC<TabIdentificacaoProps> = ({ formData, handleCha
         }));
     }
   }, [formData.schoolUnit, setFormData]);
+
+  const zoneOptions = VALID_ZONES.map(zone => ({ value: zone, label: zone }));
 
   return (
     <div className="animate-fade-in-up space-y-4">
@@ -65,14 +69,14 @@ const TabIdentificacao: React.FC<TabIdentificacaoProps> = ({ formData, handleCha
             readOnly 
             description="Preenchido automaticamente ao selecionar a escola."
           />
-          <InputField 
+          <SelectField 
             id="schoolZone" 
             name="schoolZone" 
             label="Zona" 
-            type="text" 
             value={formData.schoolZone} 
             onChange={handleChange} 
-            readOnly 
+            options={zoneOptions}
+            error={errors.schoolZone}
             tooltip={<Tooltip text="Classificação da região: Zonas Urbanas (A-F), Escolas Nucleadas ou Rural de Pequeno Porte." />}
           />
           <InputField 
@@ -128,7 +132,10 @@ const TabIdentificacao: React.FC<TabIdentificacaoProps> = ({ formData, handleCha
               <InputField id="studentName" name="studentName" label="Nome completo" type="text" value={formData.studentName} onChange={handleChange} className="sm:col-span-2" error={errors.studentName} tooltip={<Tooltip text="Nome completo do aluno, sem abreviações (Ex: João Silva Santos)." />} />
               <InputField id="studentDob" name="studentDob" label="Data de nascimento" type="date" value={formData.studentDob} onChange={handleChange} error={errors.studentDob} tooltip={<Tooltip text="Data em que o aluno nasceu." />} />
               <InputField id="studentAge" name="studentAge" label="Idade (anos)" type="number" value={formData.studentAge} onChange={handleChange} readOnly tooltip={<Tooltip text="Calculado automaticamente a partir da data de nascimento." />} />
-              <InputField id="studentRegistration" name="studentRegistration" label="Nº de matrícula" type="text" value={formData.studentRegistration} onChange={handleChange} error={errors.studentRegistration} tooltip={<Tooltip text="Use apenas letras, números e hífens. Máximo de 20 caracteres." />} />
+              
+              {/* Novo Campo Adicionado */}
+              <InputField id="studentRegistration" name="studentRegistration" label="Nº de Matrícula" type="text" value={formData.studentRegistration} onChange={handleChange} error={errors.studentRegistration} tooltip={<Tooltip text="Use apenas letras, números e hífens. Máximo de 20 caracteres." />} />
+              
               <InputField id="studentGrade" name="studentGrade" label="Ano/Série" type="text" value={formData.studentGrade} onChange={handleChange} tooltip={<Tooltip text="Ano ou série em que o aluno está matriculado. Ex: 9º Ano, 1º Ano E.M." />} />
               <InputField id="studentShift" name="studentShift" label="Turno" type="text" value={formData.studentShift} onChange={handleChange} tooltip={<Tooltip text="Turno em que o aluno estuda. Ex: Manhã, Tarde, Noite." />} />
           </div>

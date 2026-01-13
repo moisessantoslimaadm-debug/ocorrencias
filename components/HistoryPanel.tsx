@@ -372,13 +372,28 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
         <div className="bg-[#90EE90] p-4 flex justify-between items-center shadow-sm z-10">
             <h2 className="text-xl font-bold text-gray-800">Histórico</h2>
             <div className="flex items-center gap-2">
-                 <button onClick={handleExportBackup} className="p-1.5 text-emerald-800 hover:bg-emerald-500 hover:text-white rounded-full transition-colors" title="Exportar Backup">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
+                 <button 
+                    onClick={handleExportBackup} 
+                    className="group p-2 text-emerald-900 bg-white/30 hover:bg-white/60 border border-white/20 backdrop-blur-sm rounded-lg transition-all shadow-sm hover:shadow-md" 
+                    title="Exportar Backup (Download)"
+                 >
+                    {/* Cloud with Arrow Down (Download) */}
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 transition-transform duration-300 group-hover:translate-y-0.5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9.75v6.75m0 0-3-3m3 3 3-3m-8.25 6a4.5 4.5 0 0 1-1.41-8.775 5.25 5.25 0 0 1 10.233-2.33 3 3 0 0 1 3.758 3.848A3.752 3.752 0 0 1 18 19.5H6.75Z" />
+                    </svg>
                 </button>
-                <button onClick={triggerFileUpload} className="p-1.5 text-emerald-800 hover:bg-emerald-500 hover:text-white rounded-full transition-colors" title="Importar Backup">
-                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clipRule="evenodd" /></svg>
+                <button 
+                    onClick={triggerFileUpload} 
+                    className="group p-2 text-emerald-900 bg-white/30 hover:bg-white/60 border border-white/20 backdrop-blur-sm rounded-lg transition-all shadow-sm hover:shadow-md" 
+                    title="Importar Backup (Upload)"
+                >
+                     {/* Cloud with Arrow Up (Upload) */}
+                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 transition-transform duration-300 group-hover:-translate-y-0.5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0 3 3m-3-3-3 3M6.75 19.5a4.5 4.5 0 0 1-1.41-8.775 5.25 5.25 0 0 1 10.233-2.33 3 3 0 0 1 3.758 3.848A3.752 3.752 0 0 1 18 19.5H6.75Z" />
+                     </svg>
                 </button>
                  <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".json"/>
+                <div className="h-6 w-px bg-emerald-700/30 mx-1"></div>
                 <button onClick={onClose} className="p-1.5 text-gray-600 hover:bg-red-100 hover:text-red-600 rounded-full transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>

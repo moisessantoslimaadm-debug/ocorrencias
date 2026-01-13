@@ -29,3 +29,14 @@ export const statusOptions: { value: ReportStatus; label: string }[] = [
     { value: 'Resolvido', label: 'Resolvido' },
     { value: 'Arquivado', label: 'Arquivado' },
 ];
+
+export const VALID_ZONES = [
+  'ZONA A', 
+  'ZONA B', 
+  'ZONA C', 
+  'ZONA D', 
+  'ZONA E', 
+  'ZONA F', 
+  'NUCLEADAS', 
+  'RURAL - PEQUENO PORTE'
+];

@@ -43,7 +43,7 @@ export interface OccurrenceReport {
   studentAge: string;
   studentGrade: string;
   studentShift: string;
-  studentRegistration: string;
+  studentRegistration: string; // Novo campo
 
   guardianName: string;
   guardianRelationship: string;
