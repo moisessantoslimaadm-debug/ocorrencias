@@ -1,9 +1,8 @@
 
-
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { GoogleGenAI, Type } from "@google/genai";
 import type { OccurrenceReport, SavedReport, ReportImage, GeminiAnalysisResult, Modification, FormErrors, ReportStatus } from './types';
-import { DRAFT_STORAGE_KEY, HISTORY_STORAGE_KEY, AUTH_SESSION_KEY, occurrenceTypeLabels, severityOptions, GEMINI_API_KEY } from './constants';
+import { DRAFT_STORAGE_KEY, HISTORY_STORAGE_KEY, AUTH_SESSION_KEY, occurrenceTypeLabels, severityOptions } from './constants';
 
 
 // New Component Imports
@@ -106,6 +105,11 @@ const getDefaultFormData = (): OccurrenceReport & { id?: string } => {
 
     return {
       schoolUnit: '',
+      schoolAddress: '',
+      schoolInejp: '',
+      schoolDirector: '',
+      schoolPhone: '',
+      schoolZone: '',
       municipality: '',
       uf: '',
       fillDate: date,
@@ -165,6 +169,13 @@ const getInitialDraftData = (): OccurrenceReport & { id?: string } => {
                  if (!('guardianEmail' in parsedData)) parsedData.guardianEmail = '';
                  if (!('status' in parsedData)) parsedData.status = 'Novo';
 
+                 // Initialize new school fields if missing
+                 if (!('schoolAddress' in parsedData)) parsedData.schoolAddress = '';
+                 if (!('schoolInejp' in parsedData)) parsedData.schoolInejp = '';
+                 if (!('schoolDirector' in parsedData)) parsedData.schoolDirector = '';
+                 if (!('schoolPhone' in parsedData)) parsedData.schoolPhone = '';
+                 if (!('schoolZone' in parsedData)) parsedData.schoolZone = '';
+
                  // Migration for old drafts
                  if (!('occurrenceDateTime' in parsedData) && parsedData.occurrenceDate && parsedData.occurrenceTime) {
                     parsedData.occurrenceDateTime = `${parsedData.occurrenceDate}T${parsedData.occurrenceTime}`;
@@ -211,6 +222,12 @@ const getInitialHistory = (): SavedReport[] => {
                         occurrenceDateTime: report.occurrenceDateTime || '',
                         occurrenceSeverity: report.occurrenceSeverity || '',
                         status: report.status || 'Novo',
+                         // Initialize new fields
+                         schoolAddress: report.schoolAddress || '',
+                         schoolInejp: report.schoolInejp || '',
+                         schoolDirector: report.schoolDirector || '',
+                         schoolPhone: report.schoolPhone || '',
+                         schoolZone: report.schoolZone || '',
                     };
                 }) as SavedReport[];
             }
@@ -539,7 +556,7 @@ function App() {
     if (name === 'guardianPhone') {
         const phoneDigits = value.replace(/\D/g, '');
         if (phoneDigits.length > 0 && ![10, 11].includes(phoneDigits.length)) {
-            setErrors(prev => ({ ...prev, guardianPhone: 'O número de telefone deve ter 10 ou 11 dígitos, incluindo o DDD.' }));
+            setErrors(prev => ({ ...prev, guardianPhone: 'O número de telefone deve ter 10 ou 11 dígitos, incluindo o DDD.';
         } else {
             setErrors(prev => ({ ...prev, guardianPhone: undefined }));
         }
@@ -785,6 +802,11 @@ function App() {
           status: reportToLoad.status || 'Novo',
           fillDate: currentDate,
           reporterDate: currentDate,
+          schoolAddress: reportToLoad.schoolAddress || '',
+          schoolInejp: reportToLoad.schoolInejp || '',
+          schoolDirector: reportToLoad.schoolDirector || '',
+          schoolPhone: reportToLoad.schoolPhone || '',
+          schoolZone: reportToLoad.schoolZone || '',
         };
         setFormData(loadedData);
         localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(loadedData));
@@ -960,6 +982,10 @@ function App() {
       ["Status", reportForExport.status],
       ["Data de Preenchimento", `${reportForExport.fillDate} ${reportForExport.fillTime}`],
       ["Unidade Escolar", reportForExport.schoolUnit],
+      ["Endereço da Escola", reportForExport.schoolAddress],
+      ["Diretor(a)", reportForExport.schoolDirector],
+      ["INEP", reportForExport.schoolInejp],
+      ["Telefone da Escola", reportForExport.schoolPhone],
       ["Município", reportForExport.municipality],
       ["UF", reportForExport.uf],
       ["--- DADOS DO ALUNO ---", ""],
@@ -1034,7 +1060,7 @@ function App() {
     setIsGeminiModalOpen(true);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       
       const checkedTypes = occurrenceTypeLabels
         .filter(({ key }) => formData.occurrenceTypes[key])
@@ -1126,7 +1152,7 @@ function App() {
     if (!description) return { rewrittenText: null, error: "A descrição original está vazia e não pode ser reescrita." };
 
     try {
-        const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
         const prompt = `Você é um especialista em redação de documentos oficiais para o ambiente escolar. Reescreva a seguinte descrição de uma ocorrência para que seja clara, objetiva, imparcial e formal. Mantenha todos os fatos importantes, mas organize-os em uma narrativa coesa e profissional, adequada para um relatório oficial. Não adicione opiniões ou informações que não estejam presentes no texto original. Retorne apenas o texto reescrito, sem introduções ou observações.
 
         Texto Original: "${description}"`;
@@ -1165,7 +1191,13 @@ function App() {
     const commonProps = { formData, handleChange, handleBlur, errors };
     switch (activeTab) {
       case 0:
-        return <TabIdentificacao {...commonProps} onPhotoChange={handleStudentPhotoChange} onAutocompleteChange={handleAutocompleteChange} />;
+        return <TabIdentificacao 
+          {...commonProps} 
+          onPhotoChange={handleStudentPhotoChange} 
+          onAutocompleteChange={handleAutocompleteChange} 
+          // We need to pass a way to update arbitrary fields for the school selection logic
+          setFormData={setFormData}
+        />;
       case 1:
         return <TabOcorrencia {...commonProps} onCheckboxChange={handleCheckboxChange} onAnalyze={handleAnalyzeWithAI} isAnalyzing={isAnalyzing} />;
       case 2:

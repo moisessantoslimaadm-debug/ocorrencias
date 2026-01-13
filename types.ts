@@ -13,8 +13,25 @@ export interface Modification {
 
 export type ReportStatus = 'Novo' | 'Em Análise' | 'Resolvido' | 'Arquivado';
 
+export interface SchoolData {
+  id: string;
+  name: string;
+  zone: string;
+  address: string;
+  inep: string;
+  director: string;
+  phone: string;
+}
+
 export interface OccurrenceReport {
+  // School Details
   schoolUnit: string;
+  schoolAddress: string;
+  schoolInejp: string;
+  schoolDirector: string;
+  schoolPhone: string;
+  schoolZone: string;
+
   municipality: string;
   uf: string;
   fillDate: string;

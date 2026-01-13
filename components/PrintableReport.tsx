@@ -1,3 +1,4 @@
+
 import React from 'react';
 import type { OccurrenceReport, ReportStatus } from '../types';
 
@@ -60,7 +61,8 @@ const PrintableReport: React.FC<PrintableReportProps> = ({ reportData }) => {
   }
   
   const {
-    schoolUnit, municipality, uf, fillDate, fillTime, status,
+    schoolUnit, schoolAddress, schoolInejp, schoolDirector, schoolPhone, schoolZone,
+    municipality, uf, fillDate, fillTime, status,
     studentName, studentPhoto, studentDob, studentAge, studentGrade, studentShift, studentRegistration,
     guardianName, guardianRelationship, guardianPhone, guardianEmail, guardianAddress,
     occurrenceDateTime, occurrenceLocation, occurrenceSeverity, occurrenceTypes, occurrenceOtherDescription,
@@ -127,6 +129,12 @@ const PrintableReport: React.FC<PrintableReportProps> = ({ reportData }) => {
                 </div>
                 <dl className="mt-1">
                     <DataPair label="Unidade Escolar" value={schoolUnit} />
+                    {schoolAddress && <DataPair label="Endereço" value={schoolAddress} colSpan />}
+                    <div className="grid grid-cols-2 gap-4">
+                        {schoolDirector && <DataPair label="Diretor(a)" value={schoolDirector} />}
+                        {schoolPhone && <DataPair label="Telefone" value={schoolPhone} />}
+                    </div>
+                    {schoolInejp && <DataPair label="INEP" value={schoolInejp} />}
                     <DataPair label="Município / UF" value={`${municipality} / ${uf}`} />
                     <DataPair label="Data e Hora do Registro" value={`${formatDate(fillDate)} às ${fillTime}`} />
                 </dl>

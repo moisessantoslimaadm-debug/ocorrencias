@@ -1,13 +1,12 @@
 
-
-import React from 'react';
+import React, { useEffect } from 'react';
 import type { OccurrenceReport, ReportImage, FormErrors } from '../../types';
 import SectionHeader from '../SectionHeader';
 import InputField from '../InputField';
 import StudentPhotoUpload from '../StudentPhotoUpload';
 import Tooltip from '../Tooltip';
 import AutocompleteField from '../AutocompleteField';
-import { schoolSuggestions, municipalitySuggestions } from '../../data/autocompleteData';
+import { schoolSuggestions, municipalitySuggestions, schoolsData } from '../../data/autocompleteData';
 
 interface TabIdentificacaoProps {
   formData: OccurrenceReport;
@@ -15,12 +14,32 @@ interface TabIdentificacaoProps {
   handleBlur: (e: React.FocusEvent<HTMLInputElement>) => void;
   onPhotoChange: (photo: ReportImage | null) => void;
   onAutocompleteChange: (name: keyof OccurrenceReport, value: string) => void;
+  setFormData: React.Dispatch<React.SetStateAction<OccurrenceReport & { id?: string }>>;
   errors: FormErrors;
 }
 
-const TabIdentificacao: React.FC<TabIdentificacaoProps> = ({ formData, handleChange, handleBlur, onPhotoChange, onAutocompleteChange, errors }) => {
+const TabIdentificacao: React.FC<TabIdentificacaoProps> = ({ formData, handleChange, handleBlur, onPhotoChange, onAutocompleteChange, setFormData, errors }) => {
+  
+  // Effect to populate school details when a school is selected
+  useEffect(() => {
+    const selectedSchool = schoolsData.find(s => s.name === formData.schoolUnit);
+    if (selectedSchool) {
+        setFormData(prev => ({
+            ...prev,
+            schoolAddress: selectedSchool.address,
+            schoolInejp: selectedSchool.inep,
+            schoolDirector: selectedSchool.director,
+            schoolPhone: selectedSchool.phone,
+            schoolZone: selectedSchool.zone,
+            municipality: "Itaberaba",
+            uf: "BA"
+        }));
+    }
+  }, [formData.schoolUnit, setFormData]);
+
   return (
     <div className="animate-fade-in-up space-y-4">
+      <SectionHeader title="DADOS DA UNIDADE ESCOLAR" />
       <div className="bg-gray-50 p-4 rounded-md border border-gray-200 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <AutocompleteField
             id="schoolUnit"
@@ -31,8 +50,58 @@ const TabIdentificacao: React.FC<TabIdentificacaoProps> = ({ formData, handleCha
             suggestions={schoolSuggestions}
             className="lg:col-span-4"
             error={errors.schoolUnit}
-            tooltip={<Tooltip text="Comece a digitar o nome da escola para ver sugestões." />}
+            tooltip={<Tooltip text="Comece a digitar o nome da escola para ver sugestões. Os dados de endereço e direção serão preenchidos automaticamente." />}
           />
+          
+          {/* New Fields for School Details */}
+          <InputField 
+            id="schoolAddress" 
+            name="schoolAddress" 
+            label="Endereço da Escola" 
+            type="text" 
+            value={formData.schoolAddress} 
+            onChange={handleChange} 
+            className="lg:col-span-4" 
+            readOnly 
+            description="Preenchido automaticamente ao selecionar a escola."
+          />
+          <InputField 
+            id="schoolZone" 
+            name="schoolZone" 
+            label="Zona" 
+            type="text" 
+            value={formData.schoolZone} 
+            onChange={handleChange} 
+            readOnly 
+          />
+          <InputField 
+            id="schoolInejp" 
+            name="schoolInejp" 
+            label="INEP" 
+            type="text" 
+            value={formData.schoolInejp} 
+            onChange={handleChange} 
+          />
+           <InputField 
+            id="schoolDirector" 
+            name="schoolDirector" 
+            label="Diretor(a)" 
+            type="text" 
+            value={formData.schoolDirector} 
+            onChange={handleChange} 
+             className="lg:col-span-2"
+          />
+           <InputField 
+            id="schoolPhone" 
+            name="schoolPhone" 
+            label="Telefone da Escola" 
+            type="text" 
+            value={formData.schoolPhone} 
+            onChange={handleChange} 
+          />
+          
+          <div className="lg:col-span-4 border-t border-gray-300 my-2"></div>
+
           <AutocompleteField
             id="municipality"
             name="municipality"
@@ -40,13 +109,13 @@ const TabIdentificacao: React.FC<TabIdentificacaoProps> = ({ formData, handleCha
             value={formData.municipality}
             onChange={(value) => onAutocompleteChange('municipality', value)}
             suggestions={municipalitySuggestions}
-            className="lg:col-span-3"
+            className="lg:col-span-2"
             error={errors.municipality}
             tooltip={<Tooltip text="Comece a digitar o nome do município para ver sugestões." />}
           />
           <InputField id="uf" name="uf" label="UF" type="text" value={formData.uf} onChange={handleChange} error={errors.uf} tooltip={<Tooltip text="Sigla do Estado com 2 letras. Ex: BA, SP, RJ." />} />
-          <InputField id="fillDate" name="fillDate" label="Data de Preenchimento" type="date" value={formData.fillDate} onChange={handleChange} className="lg:col-span-2" error={errors.fillDate} readOnly/>
-          <InputField id="fillTime" name="fillTime" label="Horário" type="time" value={formData.fillTime} onChange={handleChange} className="lg:col-span-2" error={errors.fillTime} readOnly />
+          <InputField id="fillDate" name="fillDate" label="Data de Preenchimento" type="date" value={formData.fillDate} onChange={handleChange}  error={errors.fillDate} readOnly/>
+          <InputField id="fillTime" name="fillTime" label="Horário" type="time" value={formData.fillTime} onChange={handleChange}  error={errors.fillTime} readOnly />
       </div>
 
       <SectionHeader title="1. IDENTIFICAÇÃO DO ALUNO ENVOLVIDO" />
