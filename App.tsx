@@ -1,7 +1,7 @@
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { GoogleGenAI, Type } from "@google/genai";
-import type { OccurrenceReport, SavedReport, ReportImage, GeminiAnalysisResult, Modification, FormErrors, ReportStatus } from './types';
+import type { OccurrenceReport, SavedReport, ReportImage, GeminiAnalysisResult, Modification, FormErrors, ReportStatus, SchoolData } from './types';
 import { DRAFT_STORAGE_KEY, HISTORY_STORAGE_KEY, AUTH_SESSION_KEY, occurrenceTypeLabels, severityOptions } from './constants';
 
 
@@ -14,6 +14,8 @@ import TabFinalizacao from './components/tabs/TabFinalizacao';
 import LoginScreen from './components/LoginScreen'; // Import LoginScreen
 import GoodbyeScreen from './components/GoodbyeScreen'; // Import GoodbyeScreen
 import Dashboard from './components/Dashboard';
+import SchoolList from './components/SchoolList';
+import SchoolDetails from './components/SchoolDetails';
 
 import PrintableReport from './components/PrintableReport';
 import HistoryPanel from './components/HistoryPanel';
@@ -285,8 +287,10 @@ function App() {
   const [editingReportId, setEditingReportId] = useState<string | undefined>(formData.id);
   const [validationSummary, setValidationSummary] = useState<string | null>(null);
   
-  // New state for view management
-  const [view, setView] = useState<'dashboard' | 'form'>('dashboard');
+  // New state for view management and School Context
+  const [view, setView] = useState<'dashboard' | 'form' | 'schools' | 'school_details'>('dashboard');
+  const [selectedSchool, setSelectedSchool] = useState<SchoolData | null>(null);
+  
   const [isHistoryPanelOpen, setIsHistoryPanelOpen] = useState(false);
 
   // New state for load confirmation flow
@@ -894,7 +898,39 @@ function App() {
       setView('dashboard');
     });
   };
+  
+  const handleNavigateToSchools = () => {
+    checkForUnsavedChanges(() => {
+        setView('schools');
+        setSelectedSchool(null);
+    });
+  };
+
   const handleToggleHistory = () => setIsHistoryPanelOpen(prev => !prev);
+  
+  const handleSelectSchool = (school: SchoolData) => {
+      setSelectedSchool(school);
+      setView('school_details');
+  };
+  
+  const handleNewReportForSchool = (school: SchoolData) => {
+      confirmClear(); // Clear existing draft
+      
+      // Pre-fill school data
+      setFormData(prev => ({
+          ...prev,
+          schoolUnit: school.name,
+          schoolAddress: school.address,
+          schoolInep: school.inep,
+          schoolDirector: school.director,
+          schoolPhone: school.phone,
+          schoolZone: school.zone,
+          municipality: "Itaberaba",
+          uf: "BA"
+      }));
+      
+      setView('form');
+  };
 
 
   const reportForExport = isSubmitted ? lastSubmittedReport : (editingReportId ? formData : null);
@@ -1232,6 +1268,7 @@ function App() {
             <AppHeader
               onLogout={handleLogout}
               onNavigateToDashboard={handleNavigateToDashboard}
+              onNavigateToSchools={handleNavigateToSchools}
               onToggleHistory={handleToggleHistory}
               currentView={view}
               onPrint={handlePrint}
@@ -1244,6 +1281,16 @@ function App() {
                   reports={history}
                   onLoadReport={handleLoadReport}
                   onNewReport={handleNewReport}
+                />
+              ) : view === 'schools' ? (
+                <SchoolList onSelectSchool={handleSelectSchool} />
+              ) : view === 'school_details' && selectedSchool ? (
+                <SchoolDetails 
+                    school={selectedSchool} 
+                    reports={history.filter(r => r.schoolUnit === selectedSchool.name)}
+                    onBack={handleNavigateToSchools}
+                    onNewReportForSchool={handleNewReportForSchool}
+                    onLoadReport={handleLoadReport}
                 />
               ) : (
                 <>
