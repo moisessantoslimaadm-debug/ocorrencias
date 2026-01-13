@@ -1,4 +1,5 @@
-import React, { useEffect } from 'react';
+
+import React, { useEffect, useState } from 'react';
 import type { OccurrenceReport, ReportImage, FormErrors } from '../../types';
 import SectionHeader from '../SectionHeader';
 import InputField from '../InputField';
@@ -20,6 +21,7 @@ interface TabIdentificacaoProps {
 }
 
 const TabIdentificacao: React.FC<TabIdentificacaoProps> = ({ formData, handleChange, handleBlur, onPhotoChange, onAutocompleteChange, setFormData, errors }) => {
+  const [isMapOpen, setIsMapOpen] = useState(false);
   
   // Effect to populate school details when a school is selected
   useEffect(() => {
@@ -39,6 +41,10 @@ const TabIdentificacao: React.FC<TabIdentificacaoProps> = ({ formData, handleCha
   }, [formData.schoolUnit, setFormData]);
 
   const zoneOptions = VALID_ZONES.map(zone => ({ value: zone, label: zone }));
+
+  // Construct the map query URL
+  const fullAddress = `${formData.guardianAddress}, ${formData.municipality} - ${formData.uf}`;
+  const mapSrc = `https://maps.google.com/maps?q=${encodeURIComponent(fullAddress)}&t=&z=15&ie=UTF8&iwloc=&output=embed`;
 
   return (
     <div className="animate-fade-in-up space-y-4">
@@ -146,8 +152,83 @@ const TabIdentificacao: React.FC<TabIdentificacaoProps> = ({ formData, handleCha
           <InputField id="guardianRelationship" name="guardianRelationship" label="Parentesco" type="text" value={formData.guardianRelationship} onChange={handleChange} tooltip={<Tooltip text="Qual a relação de parentesco com o aluno. Ex: Mãe, Pai, Avó, Responsável Legal." />} />
           <InputField id="guardianPhone" name="guardianPhone" label="Contato telefônico" type="tel" value={formData.guardianPhone} onChange={handleChange} onBlur={handleBlur} placeholder="(00) 00000-0000" error={errors.guardianPhone} tooltip={<Tooltip text="Use o formato (XX) XXXXX-XXXX. O número deve ter 10 ou 11 dígitos, incluindo o DDD." />} />
           <InputField id="guardianEmail" name="guardianEmail" label="E-mail de contato" type="email" value={formData.guardianEmail} onChange={handleChange} onBlur={handleBlur} placeholder="exemplo@email.com" error={errors.guardianEmail} tooltip={<Tooltip text="Forneça o principal e-mail para contato com o responsável. Ex: nome.sobrenome@email.com." />} />
-          <InputField id="guardianAddress" name="guardianAddress" label="Endereço completo" type="text" value={formData.guardianAddress} onChange={handleChange} onBlur={handleBlur} className="md:col-span-2" error={errors.guardianAddress} tooltip={<Tooltip text="Exemplo: Rua das Flores, 123, Centro, São Paulo - SP, 01000-000" />}/>
+          
+          <div className="md:col-span-2 flex gap-2 items-end">
+            <InputField 
+                id="guardianAddress" 
+                name="guardianAddress" 
+                label="Endereço completo" 
+                type="text" 
+                value={formData.guardianAddress} 
+                onChange={handleChange} 
+                onBlur={handleBlur} 
+                className="flex-grow" 
+                error={errors.guardianAddress} 
+                tooltip={<Tooltip text="Exemplo: Rua das Flores, 123, Centro, São Paulo - SP, 01000-000" />}
+            />
+            <button
+                type="button"
+                onClick={() => setIsMapOpen(true)}
+                disabled={!formData.guardianAddress}
+                className="mb-[1px] px-4 py-2.5 bg-blue-600 text-white font-medium text-sm rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center gap-2 h-[42px]"
+                title="Visualizar Residência no Mapa"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                </svg>
+                GEO
+            </button>
+          </div>
       </div>
+
+      {/* Map Modal */}
+      {isMapOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 p-4 animate-backdrop-fade-in" onClick={() => setIsMapOpen(false)}>
+            <div className="bg-white rounded-lg shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col overflow-hidden animate-scale-in" onClick={e => e.stopPropagation()}>
+                <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+                    <div className="flex items-center gap-2">
+                        <div className="bg-blue-100 p-2 rounded-full text-blue-600">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-gray-800">Geolocalização da Residência</h3>
+                            <p className="text-xs text-gray-500">{fullAddress}</p>
+                        </div>
+                    </div>
+                    <button 
+                        onClick={() => setIsMapOpen(false)}
+                        className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-200 transition-colors"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                <div className="flex-grow relative bg-gray-100">
+                    <iframe
+                        width="100%"
+                        height="100%"
+                        style={{ border: 0 }}
+                        loading="lazy"
+                        allowFullScreen
+                        title="Mapa de Localização do Aluno"
+                        src={mapSrc}
+                        className="absolute inset-0"
+                    ></iframe>
+                </div>
+                <div className="p-3 bg-white border-t border-gray-200 text-right">
+                    <button 
+                        onClick={() => setIsMapOpen(false)}
+                        className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 font-medium text-sm transition-colors"
+                    >
+                        Fechar Mapa
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
     </div>
   );
 };
