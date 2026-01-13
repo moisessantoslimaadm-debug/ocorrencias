@@ -39,7 +39,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
         {/* Left Side - Carlton Banks GIF */}
         <div className="hidden md:block w-1/2 relative bg-gray-900">
             <img 
-                src="https://media.giphy.com/media/pa37AAGzKXoek/giphy.gif" 
+                src="https://i.giphy.com/media/pa37AAGzKXoek/giphy.gif" 
                 alt="Carlton Banks Dancing" 
                 className="absolute inset-0 w-full h-full object-cover opacity-90"
                 onError={(e) => {
