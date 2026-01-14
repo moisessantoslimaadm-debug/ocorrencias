@@ -75,7 +75,7 @@ export const FIELD_TO_TAB_MAP: { [key in keyof FormErrors]?: number } = {
   guardianPhone: 0, guardianEmail: 0,
   // Tab 1: Ocorrência
   occurrenceDateTime: 1, occurrenceLocation: 1, occurrenceSeverity: 1,
-  occurrenceTypes: 1, occurrenceOtherDescription: 1, detailedDescription: 1,
+  occurrenceTypes: 1, occurrenceOtherDescription: 1, detailedDescription: 1, observation: 1,
   // Tab 3: Finalização
   reporterName: 3, contactReason: 3, reporterDate: 3, 
   guardianSignatureName: 3, guardianSignatureDate: 3, 
@@ -143,6 +143,7 @@ const getDefaultFormData = (): OccurrenceReport & { id?: string } => {
       },
       occurrenceOtherDescription: '',
       detailedDescription: '',
+      observation: '',
       images: [],
       peopleInvolved: '',
       immediateActions: '',
@@ -187,6 +188,9 @@ const getInitialDraftData = (): OccurrenceReport & { id?: string } => {
                  
                  // Initialize contactReason if missing
                  if (!('contactReason' in parsedData)) parsedData.contactReason = '';
+                 
+                 // Initialize observation if missing
+                 if (!('observation' in parsedData)) parsedData.observation = '';
 
                  // Migration for old drafts
                  if (!('occurrenceDateTime' in parsedData) && parsedData.occurrenceDate && parsedData.occurrenceTime) {
@@ -245,6 +249,7 @@ const getInitialHistory = (): SavedReport[] => {
                          studentRegistration: report.studentRegistration || '',
                          studentId: report.studentId || '',
                          contactReason: report.contactReason || '',
+                         observation: report.observation || '',
                     };
                 }) as SavedReport[];
             }
@@ -355,6 +360,28 @@ function App() {
   const handleReturnToLogin = () => {
     setShowGoodbyeScreen(false);
   };
+
+  // Keyboard Shortcuts for Tab Navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check if user is typing in an input, textarea or select (except for specific navigation keys if desired, but safest to ignore)
+      const target = e.target as HTMLElement;
+      const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable;
+
+      if ((e.ctrlKey || e.metaKey)) { // Support Mac Cmd too
+        if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          setActiveTab(prev => Math.min(prev + 1, TABS.length - 1));
+        } else if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          setActiveTab(prev => Math.max(prev - 1, 0));
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []); // Empty dependency array ensures this runs once
 
   // Auto-save draft every 30 seconds
   useEffect(() => {
@@ -543,6 +570,7 @@ function App() {
     }
     checkMaxLength('occurrenceOtherDescription', 200, 'Descrição de "Outros"');
     checkMaxLength('detailedDescription', 2000, 'Descrição detalhada');
+    checkMaxLength('observation', 500, 'Observações Adicionais');
 
     // Tab 3: Finalization
     checkMaxLength('reporterName', 150, 'Responsável pelo registro');
@@ -871,6 +899,7 @@ function App() {
           studentRegistration: reportToLoad.studentRegistration || '',
           studentId: reportToLoad.studentId || '',
           contactReason: reportToLoad.contactReason || '',
+          observation: reportToLoad.observation || '',
         };
         setFormData(loadedData);
         localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(loadedData));
@@ -1115,6 +1144,7 @@ function App() {
       ["Tipos de Ocorrência", checkedTypes],
       ["Descrição 'Outros'", reportForExport.occurrenceOtherDescription],
       ["Descrição Detalhada", reportForExport.detailedDescription],
+      ["Observações Adicionais", reportForExport.observation],
       ["--- AÇÕES E EVIDÊNCIAS ---", ""],
       ["Evidências (Imagens)", imageNames],
       ["Pessoas Envolvidas", reportForExport.peopleInvolved],

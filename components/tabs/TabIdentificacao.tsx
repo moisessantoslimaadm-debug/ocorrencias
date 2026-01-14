@@ -107,7 +107,9 @@ const TabIdentificacao: React.FC<TabIdentificacaoProps> = ({ formData, handleCha
             options={zoneOptions}
             error={errors.schoolZone}
             required={true}
-            tooltip={<Tooltip text="Classificação da região: Zonas Urbanas (A-F), Escolas Nucleadas ou Rural de Pequeno Porte." />}
+            tooltip={
+                <Tooltip text="Classificação da região: Zonas Urbanas (A-F), Escolas Nucleadas ou Rural de Pequeno Porte." />
+            }
           />
           <InputField 
             id="schoolInep" 

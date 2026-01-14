@@ -69,6 +69,7 @@ export interface OccurrenceReport {
   occurrenceOtherDescription: string;
 
   detailedDescription: string;
+  observation: string; // Novo campo solicitado
   images: ReportImage[];
   peopleInvolved: string;
   immediateActions: string;

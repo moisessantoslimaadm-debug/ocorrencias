@@ -133,7 +133,7 @@ const TabOcorrencia: React.FC<TabOcorrenciaProps> = ({ formData, handleChange, o
         </div>
 
         <SectionHeader title="4. DESCRIÇÃO DETALHADA DO FATO" />
-        <div className="bg-white p-4 rounded-b-md border border-t-0 border-gray-200">
+        <div className="bg-white p-4 rounded-b-md border border-t-0 border-gray-200 space-y-4">
           <div className="flex justify-between items-center mb-2">
              <div className="flex items-center gap-2">
                 <label htmlFor="detailedDescription" className="text-sm font-medium text-gray-700">Relato do Ocorrido</label>
@@ -169,6 +169,20 @@ const TabOcorrencia: React.FC<TabOcorrenciaProps> = ({ formData, handleChange, o
             error={errors.detailedDescription} 
             maxLength={2000} 
           />
+          
+          <div className="pt-2 border-t border-gray-100">
+            <TextAreaField 
+                id="observation" 
+                name="observation" 
+                label="Observações Adicionais" 
+                value={formData.observation || ''} 
+                onChange={handleChange} 
+                rows={3} 
+                maxLength={500} 
+                placeholder="Observações complementares sobre o fato..."
+                tooltip={<Tooltip text="Espaço para informações extras que não se encaixam na descrição principal, mas são relevantes." />}
+            />
+          </div>
         </div>
     </div>
   );

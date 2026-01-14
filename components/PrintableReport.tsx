@@ -66,7 +66,7 @@ const PrintableReport: React.FC<PrintableReportProps> = ({ reportData }) => {
     studentName, studentPhoto, studentDob, studentAge, studentGrade, studentShift, studentRegistration,
     guardianName, guardianRelationship, guardianPhone, guardianEmail, guardianAddress,
     occurrenceDateTime, occurrenceLocation, occurrenceSeverity, occurrenceTypes, occurrenceOtherDescription,
-    detailedDescription, images, peopleInvolved, immediateActions, referralsMade, socialServiceObservation,
+    detailedDescription, observation, images, peopleInvolved, immediateActions, referralsMade, socialServiceObservation,
     reporterName, contactReason, reporterDate, guardianSignatureName, guardianSignatureDate, socialWorkerSignatureName, socialWorkerSignatureDate,
     modificationHistory
   } = reportData;
@@ -185,6 +185,7 @@ const PrintableReport: React.FC<PrintableReportProps> = ({ reportData }) => {
              <Section title="4. DESCRIÇÃO DO FATO E AÇÕES TOMADAS">
                 <div className="space-y-2">
                     <TextBlock title="Descrição Detalhada do Fato:" value={detailedDescription} />
+                    {observation && <TextBlock title="Observações Adicionais:" value={observation} />}
                     <TextBlock title="Pessoas Envolvidas (Testemunhas, etc.):" value={peopleInvolved} />
                     <TextBlock title="Providências Imediatas Adotadas pela Escola:" value={immediateActions} />
                     <TextBlock title="Encaminhamentos Realizados (Conselho Tutelar, etc.):" value={referralsMade} />
