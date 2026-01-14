@@ -34,8 +34,7 @@ const TabIdentificacao: React.FC<TabIdentificacaoProps> = ({ formData, handleCha
             schoolDirector: selectedSchool.director,
             schoolPhone: selectedSchool.phone,
             schoolZone: selectedSchool.zone, // Preenche a Zona automaticamente se disponível
-            // Gera um e-mail fictício baseado no INEP para funcionalidade de demonstração,
-            // já que a base de dados original não possui e-mails cadastrados.
+            // Gera um e-mail fictício baseado no INEP para funcionalidade de demonstração
             schoolEmail: `escola.${selectedSchool.inep}@smed.itaberaba.ba.gov.br`,
             municipality: "Itaberaba",
             uf: "BA"
@@ -132,6 +131,7 @@ const TabIdentificacao: React.FC<TabIdentificacaoProps> = ({ formData, handleCha
              description="Preenchido automaticamente."
           />
            
+           {/* Telefone e Botão de E-mail */}
            <div className="flex items-end gap-2">
                 <InputField 
                     id="schoolPhone" 
@@ -147,7 +147,7 @@ const TabIdentificacao: React.FC<TabIdentificacaoProps> = ({ formData, handleCha
                 <a
                     href={`mailto:${formData.schoolEmail}`}
                     className={`mb-[1px] px-3 py-2.5 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors flex items-center justify-center h-[42px] w-[42px] ${!formData.schoolEmail ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}`}
-                    title={`Enviar e-mail para ${formData.schoolEmail}`}
+                    title={`Enviar e-mail para ${formData.schoolEmail || 'indisponível'}`}
                     target="_blank"
                     rel="noopener noreferrer"
                 >
@@ -180,9 +180,8 @@ const TabIdentificacao: React.FC<TabIdentificacaoProps> = ({ formData, handleCha
             onChange={handleChange} 
             error={errors.uf} 
             maxLength={2}
-            tooltip={<Tooltip text="Sigla do Estado com 2 letras. Ex: BA, SP, RJ." />} 
             // HTML5 validation pattern for exactly 2 uppercase letters
-            // Note: This adds client-side validation, App.tsx handles logical validation
+            tooltip={<Tooltip text="Sigla do Estado com 2 letras maiúsculas. Ex: BA, SP, RJ." />} 
           />
           <InputField id="fillDate" name="fillDate" label="Data de Preenchimento" type="date" value={formData.fillDate} onChange={handleChange}  error={errors.fillDate} readOnly/>
           <InputField id="fillTime" name="fillTime" label="Horário" type="time" value={formData.fillTime} onChange={handleChange}  error={errors.fillTime} readOnly />

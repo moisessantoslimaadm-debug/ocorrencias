@@ -784,38 +784,34 @@ function App() {
     setTabErrors({});
 
     const { id, ...reportData } = formData;
-    let savedReport: SavedReport | undefined;
+    let savedReport: SavedReport;
 
-    setHistory(prevHistory => {
-        if (id) {
-            setToast({ message: 'Relatório atualizado com sucesso!', type: 'success' });
+    if (id) {
+         setToast({ message: 'Relatório atualizado com sucesso!', type: 'success' });
 
-            const newModification: Modification = { date: new Date().toISOString() };
-            const updatedModificationHistory = [...(reportData.modificationHistory || []), newModification];
-            
-            const updatedReport = { 
-                ...reportData, 
-                id,
-                modificationHistory: updatedModificationHistory,
-                savedAt: new Date().toISOString() 
-            };
-            savedReport = updatedReport;
+         const newModification: Modification = { date: new Date().toISOString() };
+         const updatedModificationHistory = [...(reportData.modificationHistory || []), newModification];
+         
+         savedReport = { 
+             ...reportData, 
+             id,
+             modificationHistory: updatedModificationHistory,
+             savedAt: new Date().toISOString() 
+         };
 
-            return prevHistory.map(report => report.id === id ? updatedReport : report);
-        } else {
-            setToast({ message: 'Ocorrência registrada com sucesso!', type: 'success' });
-            const newReport: SavedReport = {
-                ...reportData,
-                id: Date.now().toString(),
-                savedAt: new Date().toISOString(),
-                modificationHistory: [],
-            };
-            savedReport = newReport;
-            return [newReport, ...prevHistory];
-        }
-    });
+         setHistory(prevHistory => prevHistory.map(report => report.id === id ? savedReport : report));
+    } else {
+         setToast({ message: 'Ocorrência registrada com sucesso!', type: 'success' });
+         savedReport = {
+             ...reportData,
+             id: Date.now().toString(),
+             savedAt: new Date().toISOString(),
+             modificationHistory: [],
+         };
+         setHistory(prevHistory => [savedReport, ...prevHistory]);
+    }
     
-    setLastSubmittedReport(savedReport || null);
+    setLastSubmittedReport(savedReport);
     localStorage.removeItem(DRAFT_STORAGE_KEY);
     const newDefaultForm = getDefaultFormData();
     setFormData(newDefaultForm);
