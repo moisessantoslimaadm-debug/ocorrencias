@@ -85,11 +85,20 @@ const StudentPhotoUpload: React.FC<StudentPhotoUploadProps> = ({ photo, onPhotoC
 
   return (
     <div className="flex flex-col items-center">
-      <div className="w-40 h-40 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center border-4 border-gray-300 mb-4 shadow-inner">
-        {photo ? (
-          <img src={photo.dataUrl} alt="Foto do Aluno" className="w-full h-full object-cover" />
-        ) : (
-          <svg className="w-20 h-20 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+      <div className="relative group">
+        <div className="w-40 h-40 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center border-4 border-gray-300 mb-4 shadow-inner">
+            {photo ? (
+            <img src={photo.dataUrl} alt="Foto do Aluno" className="w-full h-full object-cover" />
+            ) : (
+            <svg className="w-20 h-20 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+            )}
+        </div>
+        
+        {/* Lightbox / Zoom on Hover */}
+        {photo && (
+            <div className="hidden group-hover:block fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 p-2 bg-white rounded-lg shadow-2xl border border-gray-200 pointer-events-none animate-scale-in">
+                <img src={photo.dataUrl} alt="Foto do Aluno Ampliada" className="max-w-[300px] max-h-[300px] rounded object-cover" />
+            </div>
         )}
       </div>
       

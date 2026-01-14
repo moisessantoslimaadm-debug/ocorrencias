@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 interface TooltipProps {
@@ -6,10 +7,10 @@ interface TooltipProps {
 
 const Tooltip: React.FC<TooltipProps> = ({ text }) => {
   return (
-    <div className="group relative flex items-center">
+    <div className="group relative flex items-center z-10">
       <svg
         xmlns="http://www.w3.org/2000/svg"
-        className="h-4 w-4 text-gray-400 cursor-pointer"
+        className="h-4 w-4 text-gray-400 cursor-pointer hover:text-emerald-600 transition-colors"
         fill="none"
         viewBox="0 0 24 24"
         stroke="currentColor"
@@ -24,7 +25,7 @@ const Tooltip: React.FC<TooltipProps> = ({ text }) => {
         />
       </svg>
       <div
-        className="absolute bottom-full mb-2 w-48 bg-gray-800 text-white text-xs rounded-md p-2 opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity duration-300 pointer-events-none"
+        className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-gray-800 text-white text-xs rounded-md p-2 opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity duration-300 pointer-events-none text-center shadow-lg"
         role="tooltip"
       >
         {text}

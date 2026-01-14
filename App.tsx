@@ -44,31 +44,25 @@ const TABS = [
 
 const validateAddress = (address: string): string => {
   const trimmedAddress = address.trim();
-  // Not a required field, so no error if empty. But if user started typing, we validate.
+  // Address is checked in validateForm if studentName is present
   if (!trimmedAddress) {
     return '';
   }
 
   // Check for minimum length to avoid very vague inputs.
-  if (trimmedAddress.length < 15) {
-    return 'Endereço muito curto. Por favor, forneça mais detalhes (rua, bairro, cidade, UF).';
+  if (trimmedAddress.length < 10) {
+    return 'Endereço muito curto. Informe pelo menos rua e número.';
   }
 
   // A comma is a good indicator of a structured address.
   const hasComma = /,/.test(trimmedAddress);
-  if (!hasComma) {
-    return 'Endereço parece incompleto. Utilize vírgulas para separar rua, bairro, cidade, etc.';
+  // Check for a number (indicating house number)
+  const hasNumber = /\d+/.test(trimmedAddress);
+
+  if (!hasComma && !hasNumber && trimmedAddress.toLowerCase().indexOf('s/n') === -1) {
+    return 'Endereço incompleto. Certifique-se de incluir o número da residência (ou S/N).';
   }
 
-  // Strict validation for Brazilian states (UF)
-  // Check for word boundaries to avoid matching inside other words (e.g. "CASA" matching "SA")
-  const validUFs = /\b(AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO)\b/i;
-  const hasValidUF = validUFs.test(trimmedAddress);
-  
-  if (!hasValidUF) {
-    return 'Endereço inválido. A sigla do estado (UF) parece estar incorreta ou faltando (ex: BA, SP).';
-  }
-  
   return '';
 };
 
@@ -487,6 +481,7 @@ function App() {
 
     checkMaxLength('municipality', 100, 'Município');
     
+    // UF Validation: Exactly 2 uppercase letters
     if (formData.uf && !/^[A-Z]{2}$/.test(formData.uf)) {
         newErrors.uf = 'UF deve conter exatamente 2 letras maiúsculas (ex: BA).';
     }
@@ -506,9 +501,14 @@ function App() {
     checkMaxLength('guardianRelationship', 50, 'Parentesco');
     checkMaxLength('guardianAddress', 200, 'Endereço');
     
-    const addressError = validateAddress(formData.guardianAddress);
-    if (addressError) {
-        newErrors.guardianAddress = addressError;
+    // Validation: If Student Name is filled, Guardian Address is mandatory and must be valid
+    if (formData.studentName && !formData.guardianAddress) {
+        newErrors.guardianAddress = 'O endereço do aluno é obrigatório.';
+    } else if (formData.guardianAddress) {
+        const addressError = validateAddress(formData.guardianAddress);
+        if (addressError) {
+            newErrors.guardianAddress = addressError;
+        }
     }
     
     if (formData.guardianPhone && formData.guardianPhone.replace(/\D/g, '').length > 0) {
@@ -551,7 +551,7 @@ function App() {
     // VALIDATION: Contact Reason required if Resolved or Archived
     if (['Resolvido', 'Arquivado'].includes(formData.status)) {
         if (!formData.contactReason || !formData.contactReason.trim()) {
-            newErrors.contactReason = 'O motivo do contato é obrigatório para encerrar o caso (Status Resolvido ou Arquivado).';
+            newErrors.contactReason = 'O motivo do contato é obrigatório para alterar o status para Resolvido ou Arquivado.';
         }
     }
     
@@ -663,6 +663,16 @@ function App() {
         }
 
         const newState = { ...prev, [name]: finalValue };
+
+        // Auto-check "Other" if description is filled
+        if (name === 'occurrenceOtherDescription') {
+            if (finalValue.trim().length > 0 && !prev.occurrenceTypes.other) {
+                newState.occurrenceTypes = {
+                    ...prev.occurrenceTypes,
+                    other: true
+                };
+            }
+        }
 
         if (name === 'studentDob') {
             // NOTE: use original `value` for age calculation, not finalValue

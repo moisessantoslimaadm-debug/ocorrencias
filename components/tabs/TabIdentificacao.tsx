@@ -180,7 +180,6 @@ const TabIdentificacao: React.FC<TabIdentificacaoProps> = ({ formData, handleCha
             onChange={handleChange} 
             error={errors.uf} 
             maxLength={2}
-            // HTML5 validation pattern for exactly 2 uppercase letters
             tooltip={<Tooltip text="Sigla do Estado com 2 letras maiúsculas. Ex: BA, SP, RJ." />} 
           />
           <InputField id="fillDate" name="fillDate" label="Data de Preenchimento" type="date" value={formData.fillDate} onChange={handleChange}  error={errors.fillDate} readOnly/>
