@@ -59,17 +59,19 @@ const SchoolList: React.FC<SchoolListProps> = ({ onSelectSchool }) => {
       </div>
 
       <div className="space-y-8">
-        {Object.entries(groupedSchools).map(([zone, schools]) => (
+        {Object.entries(groupedSchools).map(([zone, schools]) => {
+          const schoolList = schools as SchoolData[];
+          return (
           <div key={zone} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="bg-gray-50 px-6 py-3 border-b border-gray-200 flex items-center gap-2">
                 <span className="w-2 h-6 bg-emerald-500 rounded-full"></span>
                 <h3 className="text-lg font-bold text-gray-800">{zone}</h3>
                 <span className="text-xs font-medium text-gray-500 bg-white px-2 py-1 rounded-full border border-gray-200">
-                    {schools.length} Escolas
+                    {schoolList.length} Escolas
                 </span>
             </div>
             <div className="p-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {schools.map(school => (
+              {schoolList.map(school => (
                 <button
                   key={school.id}
                   onClick={() => onSelectSchool(school)}
@@ -104,7 +106,8 @@ const SchoolList: React.FC<SchoolListProps> = ({ onSelectSchool }) => {
               ))}
             </div>
           </div>
-        ))}
+        );
+        })}
         {Object.keys(groupedSchools).length === 0 && (
             <div className="text-center py-12 bg-white rounded-xl border border-gray-200 border-dashed">
                 <p className="text-gray-500">Nenhuma escola encontrada com esse termo de busca.</p>

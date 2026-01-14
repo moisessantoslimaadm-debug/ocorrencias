@@ -67,7 +67,18 @@ const TabOcorrencia: React.FC<TabOcorrenciaProps> = ({ formData, handleChange, o
               ))}
             </div>
             {formData.occurrenceTypes.other && (
-              <InputField id="occurrenceOtherDescription" name="occurrenceOtherDescription" label="Especifique 'Outros'" type="text" value={formData.occurrenceOtherDescription} onChange={handleChange} className="mt-2" error={errors.occurrenceOtherDescription} tooltip={<Tooltip text="Descreva brevemente o tipo de ocorrência, se 'Outros' foi selecionado." />} />
+              <InputField 
+                id="occurrenceOtherDescription" 
+                name="occurrenceOtherDescription" 
+                label="Especifique 'Outros'" 
+                type="text" 
+                value={formData.occurrenceOtherDescription} 
+                onChange={handleChange} 
+                className="mt-2" 
+                error={errors.occurrenceOtherDescription} 
+                maxLength={200}
+                tooltip={<Tooltip text="Descreva brevemente o tipo de ocorrência, se 'Outros' foi selecionado." />} 
+              />
             )}
           </div>
         </div>

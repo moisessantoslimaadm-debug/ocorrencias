@@ -454,8 +454,9 @@ function App() {
     };
     
     // --- REQUIRED FIELDS ---
+    // Note: schoolZone is handled specifically below to provide a better error message.
     const requiredFields: (keyof OccurrenceReport)[] = [
-      'schoolUnit', 'schoolZone', 'municipality', 'uf', 'studentName', 'studentDob',
+      'schoolUnit', 'municipality', 'uf', 'studentName', 'studentDob',
       'occurrenceDateTime', 'occurrenceLocation', 'occurrenceSeverity',
       'detailedDescription', 'reporterName', 'reporterDate'
     ];
@@ -471,7 +472,9 @@ function App() {
     // Tab 0: Identification
     checkMaxLength('schoolUnit', 100, 'Unidade Escolar');
     
-    if (formData.schoolZone && !VALID_ZONES.includes(formData.schoolZone)) {
+    if (!formData.schoolZone) {
+        newErrors.schoolZone = 'A Zona da escola é obrigatória.';
+    } else if (!VALID_ZONES.includes(formData.schoolZone)) {
         newErrors.schoolZone = 'Zona inválida. Selecione uma zona válida.';
     }
 
@@ -564,9 +567,19 @@ function App() {
   }, [formData]);
 
 
-  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
   
+    if (name === 'schoolZone') {
+        if (!value) {
+             setErrors(prev => ({ ...prev, schoolZone: 'A Zona da escola é obrigatória.' }));
+        } else if (!VALID_ZONES.includes(value)) {
+             setErrors(prev => ({ ...prev, schoolZone: 'Zona inválida. Selecione uma zona válida.' }));
+        } else {
+             setErrors(prev => ({ ...prev, schoolZone: undefined }));
+        }
+    }
+
     if (name === 'guardianEmail') {
       const trimmedValue = value.trim();
       if (trimmedValue !== value) {

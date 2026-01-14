@@ -12,13 +12,15 @@ interface SelectFieldProps {
   label: string;
   value: string;
   onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void;
+  onBlur?: (e: React.FocusEvent<HTMLSelectElement>) => void;
   options: SelectOption[];
   error?: string;
   className?: string;
   tooltip?: React.ReactNode;
+  required?: boolean;
 }
 
-const SelectField: React.FC<SelectFieldProps> = ({ id, name, label, value, onChange, options, error, className = '', tooltip }) => {
+const SelectField: React.FC<SelectFieldProps> = ({ id, name, label, value, onChange, onBlur, options, error, className = '', tooltip, required }) => {
   const validationClasses = error
     ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
     : 'border-gray-300 focus:ring-emerald-500 focus:border-emerald-500';
@@ -36,6 +38,8 @@ const SelectField: React.FC<SelectFieldProps> = ({ id, name, label, value, onCha
         name={name}
         value={value}
         onChange={onChange}
+        onBlur={onBlur}
+        required={required}
         className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 transition ${validationClasses}`}
         aria-invalid={!!error}
         aria-describedby={errorId}

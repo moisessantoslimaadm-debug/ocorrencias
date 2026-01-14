@@ -3,11 +3,13 @@ import React from 'react';
 import type { OccurrenceReport, FormErrors } from '../../types';
 import SectionHeader from '../SectionHeader';
 import InputField from '../InputField';
+import SelectField from '../SelectField';
 import Tooltip from '../Tooltip';
+import { statusOptions } from '../../constants';
 
 interface TabFinalizacaoProps {
   formData: OccurrenceReport & { id?: string };
-  handleChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
   errors: FormErrors;
 }
 
@@ -15,14 +17,48 @@ const TabFinalizacao: React.FC<TabFinalizacaoProps> = ({ formData, handleChange,
   // Determine if the modification history section should be shown
   const showModificationHistory = formData.modificationHistory && formData.modificationHistory.length > 0;
   
-  // Dynamically set the section number for "ASSINATURA"
-  const signatureSectionNumber = showModificationHistory ? 11 : 10;
+  // Calculate last modification text
+  const lastModificationText = showModificationHistory
+    ? new Date(formData.modificationHistory[formData.modificationHistory.length - 1].date).toLocaleString('pt-BR')
+    : 'Novo Registro (Sem modificações anteriores)';
+
+  // Dynamic Section Numbering
+  // 10. Situação do Registro (New)
+  // 11. Histórico (Optional)
+  // 11 or 12. Assinatura
+  const historySectionNumber = 11;
+  const signatureSectionNumber = showModificationHistory ? 12 : 11;
 
   return (
     <div className="animate-fade-in-up space-y-4">
+      
+      <SectionHeader title="10. SITUAÇÃO DO REGISTRO" />
+      <div className="bg-white p-4 rounded-b-md border border-t-0 border-gray-200 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <SelectField
+            id="status"
+            name="status"
+            label="Status do Relatório"
+            value={formData.status}
+            onChange={handleChange}
+            options={statusOptions}
+            tooltip={<Tooltip text="Defina o estado atual deste relatório." />}
+          />
+          <InputField
+            id="lastModification"
+            name="lastModification"
+            label="Data da última modificação"
+            type="text"
+            value={lastModificationText}
+            onChange={() => {}} // Read-only, no change handler needed
+            readOnly
+            className="bg-gray-50 text-gray-600"
+            tooltip={<Tooltip text="Data e hora da última alteração salva neste registro. Gerado automaticamente." />}
+          />
+      </div>
+
       {showModificationHistory && (
           <>
-            <SectionHeader title="10. HISTÓRICO DE MODIFICAÇÕES" />
+            <SectionHeader title={`${historySectionNumber}. HISTÓRICO DE MODIFICAÇÕES`} />
             <div className="bg-white p-4 rounded-b-md border border-t-0 border-gray-200">
               <ul className="space-y-2 text-sm text-gray-600">
                 {formData.modificationHistory.map((mod, index) => (
@@ -31,7 +67,7 @@ const TabFinalizacao: React.FC<TabFinalizacaoProps> = ({ formData, handleChange,
                   </li>
                 ))}
               </ul>
-              <p className="text-xs text-gray-500 mt-3 italic">Nota: A data de criação do relatório pode ser vista no painel de histórico lateral.</p>
+              <p className="text-xs text-gray-500 mt-3 italic">Nota: A data de criação original do relatório pode ser vista no painel de histórico lateral.</p>
             </div>
           </>
         )}

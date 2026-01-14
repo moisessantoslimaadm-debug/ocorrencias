@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 interface InputFieldProps {
@@ -15,6 +16,7 @@ interface InputFieldProps {
   description?: string;
   ariaLabel?: string;
   tooltip?: React.ReactNode;
+  maxLength?: number;
 }
 
 const formatPhoneNumber = (value: string): string => {
@@ -56,7 +58,7 @@ const formatCpf = (value: string): string => {
 };
 
 
-const InputField: React.FC<InputFieldProps> = ({ id, name, label, type, value, onChange, onBlur, placeholder, className = '', readOnly = false, error, description, ariaLabel, tooltip }) => {
+const InputField: React.FC<InputFieldProps> = ({ id, name, label, type, value, onChange, onBlur, placeholder, className = '', readOnly = false, error, description, ariaLabel, tooltip, maxLength }) => {
   const validationClasses = error
     ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
     : 'border-gray-300 focus:ring-emerald-500 focus:border-emerald-500';
@@ -64,6 +66,7 @@ const InputField: React.FC<InputFieldProps> = ({ id, name, label, type, value, o
   const descriptionId = description ? `${id}-description` : undefined;
   const errorId = error ? `${id}-error` : undefined;
   const describedBy = [descriptionId, errorId].filter(Boolean).join(' ');
+  const currentLength = value?.length || 0;
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (name === 'guardianPhone') {
@@ -93,9 +96,16 @@ const InputField: React.FC<InputFieldProps> = ({ id, name, label, type, value, o
 
   return (
     <div className={`flex flex-col ${className}`}>
-        <div className="flex items-center gap-1.5">
-          <label htmlFor={id} className="mb-1 text-sm font-medium text-gray-700">{label}</label>
-          {tooltip}
+        <div className="flex justify-between items-end">
+            <div className="flex items-center gap-1.5">
+                <label htmlFor={id} className="mb-1 text-sm font-medium text-gray-700">{label}</label>
+                {tooltip}
+            </div>
+            {maxLength && (
+                <span className="text-xs text-gray-400 mb-1 font-mono">
+                    {currentLength}/{maxLength}
+                </span>
+            )}
         </div>
       {description && <p id={descriptionId} className="mb-1 text-xs text-gray-500">{description}</p>}
       <input
@@ -107,6 +117,7 @@ const InputField: React.FC<InputFieldProps> = ({ id, name, label, type, value, o
         onBlur={onBlur}
         placeholder={placeholder || (type === 'date' ? 'AAAA-MM-DD' : undefined)}
         readOnly={readOnly}
+        maxLength={maxLength}
         className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 transition ${readOnly ? 'bg-gray-100 cursor-not-allowed' : ''} ${validationClasses}`}
         aria-invalid={!!error}
         aria-describedby={describedBy || undefined}

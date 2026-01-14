@@ -13,7 +13,7 @@ import { VALID_ZONES } from '../../constants';
 interface TabIdentificacaoProps {
   formData: OccurrenceReport;
   handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
-  handleBlur: (e: React.FocusEvent<HTMLInputElement>) => void;
+  handleBlur: (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => void;
   onPhotoChange: (photo: ReportImage | null) => void;
   onAutocompleteChange: (name: keyof OccurrenceReport, value: string) => void;
   setFormData: React.Dispatch<React.SetStateAction<OccurrenceReport & { id?: string }>>;
@@ -33,7 +33,7 @@ const TabIdentificacao: React.FC<TabIdentificacaoProps> = ({ formData, handleCha
             schoolInep: selectedSchool.inep,
             schoolDirector: selectedSchool.director,
             schoolPhone: selectedSchool.phone,
-            schoolZone: selectedSchool.zone,
+            schoolZone: selectedSchool.zone, // Preenche automaticamente a Zona
             municipality: "Itaberaba",
             uf: "BA"
         }));
@@ -80,8 +80,10 @@ const TabIdentificacao: React.FC<TabIdentificacaoProps> = ({ formData, handleCha
             label="Zona *" 
             value={formData.schoolZone} 
             onChange={handleChange} 
+            onBlur={handleBlur}
             options={zoneOptions}
             error={errors.schoolZone}
+            required={true}
             tooltip={<Tooltip text="Classificação da região: Zonas Urbanas (A-F), Escolas Nucleadas ou Rural de Pequeno Porte." />}
           />
           <InputField 
@@ -138,8 +140,18 @@ const TabIdentificacao: React.FC<TabIdentificacaoProps> = ({ formData, handleCha
               <InputField id="studentDob" name="studentDob" label="Data de nascimento" type="date" value={formData.studentDob} onChange={handleChange} error={errors.studentDob} tooltip={<Tooltip text="Data em que o aluno nasceu." />} />
               <InputField id="studentAge" name="studentAge" label="Idade (anos)" type="number" value={formData.studentAge} onChange={handleChange} readOnly tooltip={<Tooltip text="Calculado automaticamente a partir da data de nascimento." />} />
               
-              {/* Novo Campo Adicionado */}
-              <InputField id="studentRegistration" name="studentRegistration" label="Número de Matrícula" type="text" value={formData.studentRegistration} onChange={handleChange} error={errors.studentRegistration} tooltip={<Tooltip text="Use apenas letras, números e hífens. Máximo de 20 caracteres." />} />
+              {/* Novo Campo Adicionado com maxLength */}
+              <InputField 
+                id="studentRegistration" 
+                name="studentRegistration" 
+                label="Número de Matrícula" 
+                type="text" 
+                value={formData.studentRegistration} 
+                onChange={handleChange} 
+                error={errors.studentRegistration} 
+                maxLength={20}
+                tooltip={<Tooltip text="Use apenas letras, números e hífens. Máximo de 20 caracteres." />} 
+              />
               
               <InputField id="studentGrade" name="studentGrade" label="Ano/Série" type="text" value={formData.studentGrade} onChange={handleChange} tooltip={<Tooltip text="Ano ou série em que o aluno está matriculado. Ex: 9º Ano, 1º Ano E.M." />} />
               <InputField id="studentShift" name="studentShift" label="Turno" type="text" value={formData.studentShift} onChange={handleChange} tooltip={<Tooltip text="Turno em que o aluno estuda. Ex: Manhã, Tarde, Noite." />} />
