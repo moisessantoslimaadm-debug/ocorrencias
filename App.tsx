@@ -16,6 +16,7 @@ import GoodbyeScreen from './components/GoodbyeScreen'; // Import GoodbyeScreen
 import Dashboard from './components/Dashboard';
 import SchoolList from './components/SchoolList';
 import SchoolDetails from './components/SchoolDetails';
+import GeoMap from './components/GeoMap'; // Import GeoMap
 
 import PrintableReport from './components/PrintableReport';
 import HistoryPanel from './components/HistoryPanel';
@@ -75,7 +76,7 @@ const validateAddress = (address: string): string => {
 export const FIELD_TO_TAB_MAP: { [key in keyof FormErrors]?: number } = {
   // Tab 0: Identificação
   schoolUnit: 0, municipality: 0, uf: 0, schoolZone: 0,
-  studentName: 0, studentDob: 0, studentRegistration: 0,
+  studentName: 0, studentId: 0, studentDob: 0, studentRegistration: 0,
   guardianAddress: 0,
   guardianPhone: 0, guardianEmail: 0,
   // Tab 1: Ocorrência
@@ -114,12 +115,14 @@ const getDefaultFormData = (): OccurrenceReport & { id?: string } => {
       schoolInep: '',
       schoolDirector: '',
       schoolPhone: '',
+      schoolEmail: '',
       schoolZone: '',
       municipality: '',
       uf: '',
       fillDate: date,
       fillTime: time,
       studentName: '',
+      studentId: '',
       studentPhoto: null,
       studentDob: '',
       studentAge: '',
@@ -181,10 +184,12 @@ const getInitialDraftData = (): OccurrenceReport & { id?: string } => {
                  if (!('schoolInep' in parsedData)) parsedData.schoolInep = (parsedData as any).schoolInejp || '';
                  if (!('schoolDirector' in parsedData)) parsedData.schoolDirector = '';
                  if (!('schoolPhone' in parsedData)) parsedData.schoolPhone = '';
+                 if (!('schoolEmail' in parsedData)) parsedData.schoolEmail = '';
                  if (!('schoolZone' in parsedData)) parsedData.schoolZone = '';
                  
                  // Initialize studentRegistration if missing
                  if (!('studentRegistration' in parsedData)) parsedData.studentRegistration = '';
+                 if (!('studentId' in parsedData)) parsedData.studentId = '';
                  
                  // Initialize contactReason if missing
                  if (!('contactReason' in parsedData)) parsedData.contactReason = '';
@@ -241,8 +246,10 @@ const getInitialHistory = (): SavedReport[] => {
                          schoolInep: report.schoolInep || (report as any).schoolInejp || '',
                          schoolDirector: report.schoolDirector || '',
                          schoolPhone: report.schoolPhone || '',
+                         schoolEmail: report.schoolEmail || '',
                          schoolZone: report.schoolZone || '',
                          studentRegistration: report.studentRegistration || '',
+                         studentId: report.studentId || '',
                          contactReason: report.contactReason || '',
                     };
                 }) as SavedReport[];
@@ -275,7 +282,7 @@ const EMAIL_REGEX = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return sessionStorage.getItem(AUTH_SESSION_KEY, ) === 'true';
+    return sessionStorage.getItem(AUTH_SESSION_KEY) === 'true';
   });
   const [showGoodbyeScreen, setShowGoodbyeScreen] = useState(false);
 
@@ -298,7 +305,7 @@ function App() {
   const [validationSummary, setValidationSummary] = useState<string | null>(null);
   
   // New state for view management and School Context
-  const [view, setView] = useState<'dashboard' | 'form' | 'schools' | 'school_details'>('dashboard');
+  const [view, setView] = useState<'dashboard' | 'form' | 'schools' | 'school_details' | 'geo'>('dashboard');
   const [selectedSchool, setSelectedSchool] = useState<SchoolData | null>(null);
   
   const [isHistoryPanelOpen, setIsHistoryPanelOpen] = useState(false);
@@ -479,8 +486,9 @@ function App() {
     }
 
     checkMaxLength('municipality', 100, 'Município');
+    
     if (formData.uf && !/^[A-Z]{2}$/.test(formData.uf)) {
-        newErrors.uf = 'UF deve conter exatamente 2 letras maiúsculas.';
+        newErrors.uf = 'UF deve conter exatamente 2 letras maiúsculas (ex: BA).';
     }
     
     checkMaxLength('studentName', 150, 'Nome do aluno');
@@ -845,8 +853,10 @@ function App() {
           schoolInep: reportToLoad.schoolInep || (reportToLoad as any).schoolInejp || '',
           schoolDirector: reportToLoad.schoolDirector || '',
           schoolPhone: reportToLoad.schoolPhone || '',
+          schoolEmail: reportToLoad.schoolEmail || '',
           schoolZone: reportToLoad.schoolZone || '',
           studentRegistration: reportToLoad.studentRegistration || '',
+          studentId: reportToLoad.studentId || '',
           contactReason: reportToLoad.contactReason || '',
         };
         setFormData(loadedData);
@@ -938,6 +948,12 @@ function App() {
     });
   };
 
+  const handleNavigateToGeo = () => {
+      // Geolocalização não precisa de confirmação de descarte estrito, pois não limpa o formulário
+      // Mas para manter consistência, vamos usar o check padrão
+      setView('geo');
+  };
+
   const handleToggleHistory = () => setIsHistoryPanelOpen(prev => !prev);
   
   const handleSelectSchool = (school: SchoolData) => {
@@ -956,6 +972,7 @@ function App() {
           schoolInep: school.inep,
           schoolDirector: school.director,
           schoolPhone: school.phone,
+          schoolEmail: `escola.${school.inep}@smed.itaberaba.ba.gov.br`,
           schoolZone: school.zone,
           municipality: "Itaberaba",
           uf: "BA"
@@ -1059,6 +1076,7 @@ function App() {
       ["Diretor(a)", reportForExport.schoolDirector],
       ["INEP", reportForExport.schoolInep],
       ["Telefone da Escola", reportForExport.schoolPhone],
+      ["E-mail da Escola", reportForExport.schoolEmail],
       ["Zona", reportForExport.schoolZone],
       ["Município", reportForExport.municipality],
       ["UF", reportForExport.uf],
@@ -1070,6 +1088,7 @@ function App() {
       ["Ano/Série", reportForExport.studentGrade],
       ["Turno", reportForExport.studentShift],
       ["Nº de Matrícula", reportForExport.studentRegistration],
+      ["ID do Aluno", reportForExport.studentId],
       ["--- DADOS DO RESPONSÁVEL ---", ""],
       ["Nome do Responsável", reportForExport.guardianName],
       ["Parentesco", reportForExport.guardianRelationship],
@@ -1149,7 +1168,7 @@ function App() {
       `;
       
       const response = await ai.models.generateContent({
-          model: "gemini-2.5-flash",
+          model: "gemini-3-flash-preview",
           contents: prompt,
           config: {
               responseMimeType: "application/json",
@@ -1233,7 +1252,7 @@ function App() {
         Texto Original: "${description}"`;
 
         const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
+            model: "gemini-3-flash-preview",
             contents: prompt,
         });
         
@@ -1302,6 +1321,7 @@ function App() {
               onLogout={handleLogout}
               onNavigateToDashboard={handleNavigateToDashboard}
               onNavigateToSchools={handleNavigateToSchools}
+              onNavigateToGeo={handleNavigateToGeo}
               onToggleHistory={handleToggleHistory}
               currentView={view}
               onPrint={handlePrint}
@@ -1317,6 +1337,11 @@ function App() {
                 />
               ) : view === 'schools' ? (
                 <SchoolList onSelectSchool={handleSelectSchool} />
+              ) : view === 'geo' ? (
+                 <GeoMap 
+                    currentStudentAddress={formData.guardianAddress} 
+                    currentStudentName={formData.studentName}
+                 />
               ) : view === 'school_details' && selectedSchool ? (
                 <SchoolDetails 
                     school={selectedSchool} 

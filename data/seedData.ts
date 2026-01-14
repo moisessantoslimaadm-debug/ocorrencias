@@ -2,7 +2,7 @@
 import type { SavedReport } from '../types';
 
 // Placeholder base64 images for demonstration purposes
-const studentPhoto1 = "data:image/png;base64,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";
+const studentPhoto1 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAFRklEQVR42u3BMQEAAADCoPVPbQ0PoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIBPAAsoAAH2KSLGAAAAAElFTkSuQmCC";
 const studentPhoto2 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAFRklEQVR42u3BMQEAAADCoPVPbQ0PoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIBPAAsoAAH2KSLGAAAAAElFTkSuQmCC";
 const studentPhoto3 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAFRklEQVR42u3BMQEAAADCoPVPbQ0PoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIBPAAsoAAH2KSLGAAAAAElFTkSuQmCC";
 
@@ -18,12 +18,14 @@ export const seedData: SavedReport[] = [
         schoolInep: "29123456",
         schoolDirector: "Maria da Silva",
         schoolPhone: "(75) 3251-1001",
+        schoolEmail: "escola.29123456@smed.itaberaba.ba.gov.br",
         schoolZone: "ZONA A",
         municipality: "Itaberaba",
         uf: "BA",
         fillDate: "2024-05-16",
         fillTime: "14:30",
         studentName: "Lucas Pereira",
+        studentId: "STD-2024-001",
         studentPhoto: { name: "lucas.jpg", dataUrl: studentPhoto1 },
         studentDob: "2010-03-22",
         studentAge: "14",
@@ -64,12 +66,14 @@ export const seedData: SavedReport[] = [
         schoolInep: "29123460",
         schoolDirector: "Fernanda Lima",
         schoolPhone: "(75) 3251-2001",
+        schoolEmail: "escola.29123460@smed.itaberaba.ba.gov.br",
         schoolZone: "ZONA B",
         municipality: "Itaberaba",
         uf: "BA",
         fillDate: "2024-05-15",
         fillTime: "09:00",
         studentName: "Juliana Santos",
+        studentId: "STD-2024-002",
         studentPhoto: null,
         studentDob: "2008-11-10",
         studentAge: "15",

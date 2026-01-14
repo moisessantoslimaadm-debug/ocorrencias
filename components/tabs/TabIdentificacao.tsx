@@ -23,7 +23,7 @@ interface TabIdentificacaoProps {
 const TabIdentificacao: React.FC<TabIdentificacaoProps> = ({ formData, handleChange, handleBlur, onPhotoChange, onAutocompleteChange, setFormData, errors }) => {
   const [isMapOpen, setIsMapOpen] = useState(false);
   
-  // Effect to populate school details when a school is selected
+  // Efeito para preencher automaticamente os dados da escola quando selecionada
   useEffect(() => {
     const selectedSchool = schoolsData.find(s => s.name === formData.schoolUnit);
     if (selectedSchool) {
@@ -33,14 +33,38 @@ const TabIdentificacao: React.FC<TabIdentificacaoProps> = ({ formData, handleCha
             schoolInep: selectedSchool.inep,
             schoolDirector: selectedSchool.director,
             schoolPhone: selectedSchool.phone,
-            schoolZone: selectedSchool.zone,
+            schoolZone: selectedSchool.zone, // Preenche a Zona automaticamente se disponível
+            // Gera um e-mail fictício baseado no INEP para funcionalidade de demonstração,
+            // já que a base de dados original não possui e-mails cadastrados.
+            schoolEmail: `escola.${selectedSchool.inep}@smed.itaberaba.ba.gov.br`,
             municipality: "Itaberaba",
             uf: "BA"
         }));
     }
   }, [formData.schoolUnit, setFormData]);
 
+  // Efeito para simular preenchimento automático do ID do aluno
+  useEffect(() => {
+    if (formData.studentName && !formData.studentId) {
+       // Gera um ID hash simples baseado no nome para simular um ID de banco de dados
+       const simpleHash = formData.studentName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+       const mockId = `STD-${new Date().getFullYear()}-${simpleHash}`;
+       setFormData(prev => ({ ...prev, studentId: mockId }));
+    } else if (!formData.studentName) {
+       setFormData(prev => ({ ...prev, studentId: '' }));
+    }
+  }, [formData.studentName, formData.studentId, setFormData]);
+
   const zoneOptions = VALID_ZONES.map(zone => ({ value: zone, label: zone }));
+
+  // Handler específico para restrição de caracteres na Matrícula
+  const handleRegistrationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Permite apenas letras, números e hífens
+    if (/^[a-zA-Z0-9-]*$/.test(value)) {
+        handleChange(e);
+    }
+  };
 
   // Construct the map query URL
   const fullAddress = `${formData.guardianAddress}, ${formData.municipality} - ${formData.uf}`;
@@ -107,16 +131,32 @@ const TabIdentificacao: React.FC<TabIdentificacaoProps> = ({ formData, handleCha
              readOnly
              description="Preenchido automaticamente."
           />
-           <InputField 
-            id="schoolPhone" 
-            name="schoolPhone" 
-            label="Telefone da Escola" 
-            type="text" 
-            value={formData.schoolPhone} 
-            onChange={handleChange}
-            readOnly
-            description="Automático" 
-          />
+           
+           <div className="flex items-end gap-2">
+                <InputField 
+                    id="schoolPhone" 
+                    name="schoolPhone" 
+                    label="Telefone da Escola" 
+                    type="text" 
+                    value={formData.schoolPhone} 
+                    onChange={handleChange}
+                    readOnly
+                    description="Automático"
+                    className="flex-grow"
+                />
+                <a
+                    href={`mailto:${formData.schoolEmail}`}
+                    className={`mb-[1px] px-3 py-2.5 bg-blue-600 text-white rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors flex items-center justify-center h-[42px] w-[42px] ${!formData.schoolEmail ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}`}
+                    title={`Enviar e-mail para ${formData.schoolEmail}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+                        <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+                    </svg>
+                </a>
+           </div>
           
           <div className="lg:col-span-4 border-t border-gray-300 my-2"></div>
 
@@ -131,7 +171,19 @@ const TabIdentificacao: React.FC<TabIdentificacaoProps> = ({ formData, handleCha
             error={errors.municipality}
             tooltip={<Tooltip text="Comece a digitar o nome do município para ver sugestões." />}
           />
-          <InputField id="uf" name="uf" label="UF" type="text" value={formData.uf} onChange={handleChange} error={errors.uf} tooltip={<Tooltip text="Sigla do Estado com 2 letras. Ex: BA, SP, RJ." />} />
+          <InputField 
+            id="uf" 
+            name="uf" 
+            label="UF" 
+            type="text" 
+            value={formData.uf} 
+            onChange={handleChange} 
+            error={errors.uf} 
+            maxLength={2}
+            tooltip={<Tooltip text="Sigla do Estado com 2 letras. Ex: BA, SP, RJ." />} 
+            // HTML5 validation pattern for exactly 2 uppercase letters
+            // Note: This adds client-side validation, App.tsx handles logical validation
+          />
           <InputField id="fillDate" name="fillDate" label="Data de Preenchimento" type="date" value={formData.fillDate} onChange={handleChange}  error={errors.fillDate} readOnly/>
           <InputField id="fillTime" name="fillTime" label="Horário" type="time" value={formData.fillTime} onChange={handleChange}  error={errors.fillTime} readOnly />
       </div>
@@ -146,17 +198,30 @@ const TabIdentificacao: React.FC<TabIdentificacaoProps> = ({ formData, handleCha
               <InputField id="studentDob" name="studentDob" label="Data de nascimento" type="date" value={formData.studentDob} onChange={handleChange} error={errors.studentDob} tooltip={<Tooltip text="Data em que o aluno nasceu." />} />
               <InputField id="studentAge" name="studentAge" label="Idade (anos)" type="number" value={formData.studentAge} onChange={handleChange} readOnly tooltip={<Tooltip text="Calculado automaticamente a partir da data de nascimento." />} />
               
-              {/* Novo Campo Adicionado com maxLength */}
+              {/* Campo com validação estrita de entrada */}
               <InputField 
                 id="studentRegistration" 
                 name="studentRegistration" 
                 label="Número de Matrícula" 
                 type="text" 
                 value={formData.studentRegistration} 
-                onChange={handleChange} 
+                onChange={handleRegistrationChange} 
                 error={errors.studentRegistration} 
                 maxLength={20}
                 tooltip={<Tooltip text="Use apenas letras, números e hífens. Máximo de 20 caracteres." />} 
+              />
+
+              {/* Campo ID do Aluno - Somente Leitura */}
+              <InputField 
+                id="studentId" 
+                name="studentId" 
+                label="ID do Aluno" 
+                type="text" 
+                value={formData.studentId} 
+                onChange={() => {}} // Read-only
+                readOnly
+                className="bg-gray-50 text-gray-600"
+                tooltip={<Tooltip text="Identificador único do aluno gerado automaticamente pelo sistema." />} 
               />
               
               <InputField id="studentGrade" name="studentGrade" label="Ano/Série" type="text" value={formData.studentGrade} onChange={handleChange} tooltip={<Tooltip text="Ano ou série em que o aluno está matriculado. Ex: 9º Ano, 1º Ano E.M." />} />

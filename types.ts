@@ -30,6 +30,7 @@ export interface OccurrenceReport {
   schoolInep: string;
   schoolDirector: string;
   schoolPhone: string;
+  schoolEmail: string; // Novo campo
   schoolZone: string;
 
   municipality: string;
@@ -38,12 +39,13 @@ export interface OccurrenceReport {
   fillTime: string;
 
   studentName: string;
+  studentId: string;
   studentPhoto: ReportImage | null;
   studentDob: string;
   studentAge: string;
   studentGrade: string;
   studentShift: string;
-  studentRegistration: string; // Novo campo
+  studentRegistration: string;
 
   guardianName: string;
   guardianRelationship: string;
