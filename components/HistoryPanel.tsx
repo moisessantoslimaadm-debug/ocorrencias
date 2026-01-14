@@ -148,7 +148,7 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
         `;
 
         const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
+            model: "gemini-3-flash-preview",
             contents: prompt,
             config: {
                 responseMimeType: "application/json",
@@ -225,7 +225,7 @@ const HistoryPanel: React.FC<HistoryPanelProps> = ({ reports, onLoadReport, onDe
         `;
 
         const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
+            model: "gemini-3-flash-preview",
             contents: prompt,
             config: {
                 responseMimeType: "application/json",
