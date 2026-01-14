@@ -59,8 +59,8 @@ const TabIdentificacao: React.FC<TabIdentificacaoProps> = ({ formData, handleCha
   // Handler específico para restrição de caracteres na Matrícula
   const handleRegistrationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    // Permite apenas letras, números e hífens
-    if (/^[a-zA-Z0-9-]*$/.test(value)) {
+    // Permite apenas letras, números e hífens e limita a 20 caracteres
+    if (/^[a-zA-Z0-9-]*$/.test(value) && value.length <= 20) {
         handleChange(e);
     }
   };

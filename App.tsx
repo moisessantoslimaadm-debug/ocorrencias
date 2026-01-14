@@ -548,6 +548,13 @@ function App() {
     checkMaxLength('reporterName', 150, 'Responsável pelo registro');
     checkMaxLength('contactReason', 150, 'Motivo do Contato');
     
+    // VALIDATION: Contact Reason required if Resolved or Archived
+    if (['Resolvido', 'Arquivado'].includes(formData.status)) {
+        if (!formData.contactReason || !formData.contactReason.trim()) {
+            newErrors.contactReason = 'O motivo do contato é obrigatório para encerrar o caso (Status Resolvido ou Arquivado).';
+        }
+    }
+    
     const dateFields: (keyof OccurrenceReport)[] = ['reporterDate', 'guardianSignatureDate', 'socialWorkerSignatureDate'];
     dateFields.forEach(field => {
       const dateValue = formData[field] as string | undefined;

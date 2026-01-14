@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useRef } from 'react';
 import type { ReportImage } from '../types';
 
@@ -84,7 +85,7 @@ const StudentPhotoUpload: React.FC<StudentPhotoUploadProps> = ({ photo, onPhotoC
 
   return (
     <div className="flex flex-col items-center">
-      <div className="w-40 h-40 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center border-4 border-gray-300 mb-4">
+      <div className="w-40 h-40 rounded-full overflow-hidden bg-gray-200 flex items-center justify-center border-4 border-gray-300 mb-4 shadow-inner">
         {photo ? (
           <img src={photo.dataUrl} alt="Foto do Aluno" className="w-full h-full object-cover" />
         ) : (
@@ -96,7 +97,7 @@ const StudentPhotoUpload: React.FC<StudentPhotoUploadProps> = ({ photo, onPhotoC
         <button
           type="button"
           onClick={handleRemove}
-          className="px-4 py-2 text-sm font-medium text-red-700 bg-red-100 rounded-md hover:bg-red-200 transition-colors"
+          className="px-4 py-2 text-sm font-medium text-red-700 bg-red-100 rounded-md hover:bg-red-200 transition-colors shadow-sm"
         >
           Remover Foto
         </button>
@@ -110,27 +111,34 @@ const StudentPhotoUpload: React.FC<StudentPhotoUploadProps> = ({ photo, onPhotoC
           onKeyDown={handleKeyDown}
           tabIndex={0}
           role="button"
-          aria-label="Carregar foto do aluno"
-          className={`relative w-full border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors
-            ${isDragging ? 'border-emerald-500 bg-emerald-50' : 'border-gray-300 hover:border-gray-400 bg-gray-50'}`}
+          aria-label="Carregar ou tirar foto do aluno"
+          className={`relative w-full border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-all duration-200
+            ${isDragging ? 'border-emerald-500 bg-emerald-50 scale-105' : 'border-gray-300 hover:border-emerald-400 hover:bg-gray-50'}`}
         >
           <input
             id="student-photo-upload"
             ref={inputRef}
             type="file"
             accept={ALLOWED_MIME_TYPES.join(',')}
+            capture="user" 
             onChange={handleFileChange}
             className="sr-only"
           />
           <div className="flex flex-col items-center">
-             <p className="text-sm text-gray-600">
-                <span className="font-semibold text-emerald-600">Carregar foto</span>
+             <div className="mb-2 text-emerald-600">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+             </div>
+             <p className="text-sm font-medium text-gray-700">
+                Tirar Foto ou Carregar
              </p>
-             <p className="text-xs text-gray-500">ou arraste e solte</p>
+             <p className="text-xs text-gray-500 mt-1">JPG, PNG ou WebP (Máx. 2MB)</p>
           </div>
         </label>
       )}
-      {error && <p className="mt-2 text-xs text-red-600" role="alert">{error}</p>}
+      {error && <p className="mt-2 text-xs text-red-600 animate-fade-in-up-fast" role="alert">{error}</p>}
     </div>
   );
 };

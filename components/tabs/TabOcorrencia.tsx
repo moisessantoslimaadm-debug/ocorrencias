@@ -78,31 +78,42 @@ const TabOcorrencia: React.FC<TabOcorrenciaProps> = ({ formData, handleChange, o
              </div>
              
              <div className="lg:col-span-2 bg-gray-50 p-4 rounded-md border border-gray-200">
-                <label className="block text-sm font-medium text-gray-700 mb-3">Classificação do Tipo de Ocorrência:</label>
-                {errors.occurrenceTypes && <p className="text-xs text-red-600 mb-2" role="alert">{errors.occurrenceTypes}</p>}
+                <label className="block text-sm font-medium text-gray-700 mb-3">Classificação do Tipo de Ocorrência (Selecione todos aplicáveis):</label>
+                {errors.occurrenceTypes && <p className="text-xs text-red-600 mb-2 font-medium" role="alert">{errors.occurrenceTypes}</p>}
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
-                  {occurrenceTypeLabels.map(({ key, label }) => (
-                    <div key={key} className="flex items-start">
-                      <div className="flex items-center h-5">
-                        <input
-                          id={key}
-                          name={key}
-                          type="checkbox"
-                          checked={!!formData.occurrenceTypes[key]}
-                          onChange={onCheckboxChange}
-                          className="h-4 w-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 cursor-pointer"
-                        />
-                      </div>
-                      <div className="ml-2 text-sm">
-                        <label htmlFor={key} className="text-gray-700 cursor-pointer select-none">{label}</label>
-                      </div>
-                    </div>
-                  ))}
+                <div className="flex flex-wrap gap-2">
+                  {occurrenceTypeLabels.map(({ key, label }) => {
+                    const isSelected = !!formData.occurrenceTypes[key];
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => {
+                            // Cria um evento sintético para aproveitar a lógica existente no App.tsx
+                            const syntheticEvent = {
+                                target: {
+                                    name: key,
+                                    checked: !isSelected
+                                }
+                            } as React.ChangeEvent<HTMLInputElement>;
+                            onCheckboxChange(syntheticEvent);
+                        }}
+                        className={`px-4 py-2 rounded-full text-sm font-medium border transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-emerald-500
+                            ${isSelected
+                                ? 'bg-emerald-600 text-white border-emerald-600 shadow-md transform scale-105'
+                                : 'bg-white text-gray-600 border-gray-300 hover:bg-emerald-50 hover:border-emerald-300'
+                            }
+                        `}
+                        aria-pressed={isSelected}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
                 </div>
                 
                 {formData.occurrenceTypes.other && (
-                  <div className="mt-3 animate-fade-in-up-fast">
+                  <div className="mt-4 animate-fade-in-up-fast">
                     <InputField 
                       id="occurrenceOtherDescription" 
                       name="occurrenceOtherDescription" 
