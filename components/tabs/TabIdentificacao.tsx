@@ -33,7 +33,7 @@ const TabIdentificacao: React.FC<TabIdentificacaoProps> = ({ formData, handleCha
             schoolInep: selectedSchool.inep,
             schoolDirector: selectedSchool.director,
             schoolPhone: selectedSchool.phone,
-            schoolZone: selectedSchool.zone, // Preenche automaticamente a Zona
+            schoolZone: selectedSchool.zone,
             municipality: "Itaberaba",
             uf: "BA"
         }));
@@ -62,7 +62,7 @@ const TabIdentificacao: React.FC<TabIdentificacaoProps> = ({ formData, handleCha
             tooltip={<Tooltip text="Comece a digitar o nome da escola para ver sugestões. Os dados de endereço e direção serão preenchidos automaticamente." />}
           />
           
-          {/* New Fields for School Details */}
+          {/* Campos preenchidos automaticamente com base na escola selecionada */}
           <InputField 
             id="schoolAddress" 
             name="schoolAddress" 
@@ -72,7 +72,7 @@ const TabIdentificacao: React.FC<TabIdentificacaoProps> = ({ formData, handleCha
             onChange={handleChange} 
             className="lg:col-span-4" 
             readOnly 
-            description="Preenchido automaticamente ao selecionar a escola."
+            description="Preenchido automaticamente."
           />
           <SelectField 
             id="schoolZone" 
@@ -92,7 +92,9 @@ const TabIdentificacao: React.FC<TabIdentificacaoProps> = ({ formData, handleCha
             label="INEP" 
             type="text" 
             value={formData.schoolInep} 
-            onChange={handleChange} 
+            onChange={handleChange}
+            readOnly
+            description="Automático"
           />
            <InputField 
             id="schoolDirector" 
@@ -102,6 +104,8 @@ const TabIdentificacao: React.FC<TabIdentificacaoProps> = ({ formData, handleCha
             value={formData.schoolDirector} 
             onChange={handleChange} 
              className="lg:col-span-2"
+             readOnly
+             description="Preenchido automaticamente."
           />
            <InputField 
             id="schoolPhone" 
@@ -109,7 +113,9 @@ const TabIdentificacao: React.FC<TabIdentificacaoProps> = ({ formData, handleCha
             label="Telefone da Escola" 
             type="text" 
             value={formData.schoolPhone} 
-            onChange={handleChange} 
+            onChange={handleChange}
+            readOnly
+            description="Automático" 
           />
           
           <div className="lg:col-span-4 border-t border-gray-300 my-2"></div>
